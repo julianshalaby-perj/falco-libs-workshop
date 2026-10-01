@@ -1,11 +1,18 @@
 $ErrorActionPreference = 'Stop'
 $WorkshopRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $SourceDir = Join-Path $WorkshopRoot 'src'
+$Stage = 0
+if (Test-Path (Join-Path $SourceDir 'main.cpp')) {
+    $FirstLine = Get-Content -LiteralPath (Join-Path $SourceDir 'main.cpp') -TotalCount 1
+    if ($FirstLine -notmatch '^// Step ([123]):') {
+        throw 'Cannot identify the stage. Keep the first // Step N: comment in src/main.cpp.'
+    }
+    $Stage = $Matches[1]
+}
 $LogDir = Join-Path $WorkshopRoot 'logs'
 New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
-$RunId = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + "-$PID"
-$LogFile = Join-Path $LogDir "$RunId.log"
-$JsonlFile = Join-Path $LogDir "$RunId.jsonl"
+$LogFile = Join-Path $LogDir "stage-$Stage.log"
+$JsonlFile = Join-Path $LogDir "stage-$Stage.jsonl"
 [IO.File]::WriteAllText($LogFile, '')
 [IO.File]::WriteAllText($JsonlFile, '')
 
@@ -15,7 +22,7 @@ function Write-Status {
     Add-Content -LiteralPath $LogFile -Value $Message -Encoding UTF8
 }
 try {
-Write-Status "Run: $RunId"
+Write-Status "Stage: $Stage"
 if (-not (Test-Path (Join-Path $SourceDir 'main.cpp')) -or -not (Test-Path (Join-Path $SourceDir 'CMakeLists.txt'))) {
     Write-Status 'No agent yet. Nothing to collect. Run scripts/windows/step-1.ps1 first.'
     Write-Status "Status log: $LogFile"
