@@ -116,7 +116,7 @@ cmake -S "$libs_dir" -B "$root_dir/build" \
 cmake --build "$root_dir/build" --target sinsp --parallel "${BUILD_JOBS:-1}"
 
 
-echo 'Setup complete. Run step 1 from your Mac or Windows scripts folder.'
+echo 'Setup complete.'
 # End of Ubuntu setup.
 UBUNTU_SETUP
-echo 'Enter the workshop VM: multipass shell falco-lab'
+echo 'Stay in this terminal. Next: bash scripts/mac/step-1.sh'

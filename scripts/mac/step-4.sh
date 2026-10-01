@@ -62,7 +62,7 @@ int main() {
             }
             /* END STEP 4 */
         }
-        std::cout << "Received " << received << " events." << std::endl;
+        std::cout << "Read " << received << " process-execution events." << std::endl;
         /* END STEP 2 */
 
         inspector.stop_capture();

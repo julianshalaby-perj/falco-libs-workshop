@@ -7,7 +7,7 @@ if [[ $(uname -s) != Darwin ]]; then
     exit 1
 fi
 if [[ ! -f "$root_dir/src/main.cpp" || ! -f "$root_dir/src/CMakeLists.txt" ]]; then
-    echo 'No agent yet. Run bash scripts/mac/step-1.sh first.'
+    echo 'No agent yet. Nothing to collect. Run bash scripts/mac/step-1.sh first.'
     exit 0
 fi
 export PATH="/usr/local/bin:$PATH"
@@ -33,18 +33,49 @@ entry='add_subdirectory("${WORKSHOP_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/workshop")
 if ! grep -Fqx "$entry" "$examples"; then
     printf '\n%s\n' "$entry" >> "$examples"
 fi
+# Keep successful build output out of the workshop terminal.
+(
 cmake -S "$libs_dir" -B "$root_dir/build" \
     -DCMAKE_BUILD_TYPE=Release \
     -DUSE_BUNDLED_DEPS=ON \
     -DBUILD_LIBSCAP_MODERN_BPF=ON \
     -DCREATE_TEST_TARGETS=OFF \
     -DBUILD_LIBSINSP_EXAMPLES=ON \
-    -DWORKSHOP_SOURCE_DIR="$root_dir/src"
+    -DWORKSHOP_SOURCE_DIR="$root_dir/src" &&
 cmake --build "$root_dir/build" --target workshop-agent -j 1
+) > "$root_dir/build/workshop-build.log" 2>&1 || {
+    cat "$root_dir/build/workshop-build.log" >&2
+    exit 1
+}
 # End of build.
 UBUNTU_BUILD
 
 mkdir -p "$root_dir/logs"
-echo 'Running the agent for ten seconds...'
-multipass exec falco-lab -- bash -c 'exec sudo /home/ubuntu/falco-libs-workshop/build/bin/workshop-agent 2>&1' | tee "$root_dir/logs/latest.log"
+echo 'Running for ten seconds. Example activity is generated automatically...'
+multipass exec falco-lab -- bash -s <<'UBUNTU_CAPTURE' | tee "$root_dir/logs/latest.log"
+set -euo pipefail
+root_dir=/home/ubuntu/falco-libs-workshop
+capture_log="$root_dir/build/workshop-capture.log"
+sudo "$root_dir/build/bin/workshop-agent" > "$capture_log" 2>&1 &
+agent_pid=$!
+# Stop this run's agent if the runner is interrupted.
+trap 'kill "$agent_pid" 2>/dev/null || true' EXIT
+trap 'exit 130' HUP INT TERM
+
+# Generate one example execution after attachment, without another terminal.
+for attempt in {1..200}; do
+    if grep -q 'Attached to the Ubuntu kernel.' "$capture_log"; then
+        /usr/bin/id >/dev/null
+        break
+    fi
+    if ! kill -0 "$agent_pid" 2>/dev/null; then break; fi
+    sleep 0.1
+done
+result=0
+wait "$agent_pid" || result=$?
+trap - EXIT HUP INT TERM
+cat "$capture_log"
+exit "$result"
+# End of capture.
+UBUNTU_CAPTURE
 echo "Saved output: $root_dir/logs/latest.log"
