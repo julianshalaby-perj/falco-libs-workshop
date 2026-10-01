@@ -9,19 +9,25 @@ The slides are the complete attendee guide: fresh-computer setup, four exercises
 solutions, troubleshooting, and cleanup. Setup is on slide 2.
 The live session starts at slide 3 and takes roughly 45–60 minutes.
 
-Clone this repo, then run `bash scripts/setup.sh` on macOS or
-`powershell -ExecutionPolicy Bypass -File scripts/setup.ps1` on Windows.
+Clone this repo, then run `bash scripts/setup-mac.sh` on macOS or
+`powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1` on Windows.
 If Multipass is missing, setup asks before downloading and running Canonical’s
 installer. Approve the OS administrator prompt and, on Windows, complete the
 installer. If it requests a restart, reboot and rerun setup. Setup then creates
 the Ubuntu VM, copies the source, installs dependencies, and builds the agent. Re-running setup keeps
 your existing VM source edits. No GitHub account is needed.
 
+After editing the agent, rebuild inside the VM from `~/falco-libs-workshop`:
+
+```sh
+cmake --build build --target workshop-agent -j 1
+```
+
 | Folder | Contents |
 | --- | --- |
 | `presentation/` | The slides, including presenter notes |
 | `src/` | One C++ agent and its CMake configuration |
-| `scripts/` | Mac/Windows VM setup, build, prerequisite checks, and dummy activity |
+| `scripts/` | Standalone Mac/Windows setup and a dummy activity demo |
 
 This is a local learning project. It uses Falco libraries directly and does not
 load Falco YAML rules. The VM is the monitored machine. Activity on your Mac or
