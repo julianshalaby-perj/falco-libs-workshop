@@ -26,7 +26,7 @@ set_target_properties(workshop-agent PROPERTIES
 )
 COLLECTOR_CMAKE
 cat > "$root_dir/src/main.cpp" <<'COLLECTOR_CPP'
-// Step 2: read and count events. Earlier steps are included.
+// Step 4: add process names and pids. Earlier steps are included.
 #include <chrono>
 #include <cstdint>
 #include <iostream>
@@ -39,6 +39,10 @@ cat > "$root_dir/src/main.cpp" <<'COLLECTOR_CPP'
 int main() {
     try {
         sinsp inspector;
+
+        /* STEP 3 ADDED: return only process execution exit events. */
+        inspector.set_filter("evt.type in (execve, execveat) and evt.dir=<");
+        /* END STEP 3 */
 
         inspector.open_modern_bpf();
         inspector.start_capture();
@@ -60,6 +64,15 @@ int main() {
                 throw std::runtime_error(inspector.getlasterr());
             }
             ++received;
+
+            /* STEP 4 ADDED: use libsinsp process context. */
+            const auto* process = event->get_thread_info();
+            if(process != nullptr) {
+                std::cout << event->get_name()
+                          << " pid=" << process->m_pid
+                          << " name=" << process->m_comm << std::endl;
+            }
+            /* END STEP 4 */
         }
         std::cout << "Received " << received << " events." << std::endl;
         /* END STEP 2 */
@@ -77,7 +90,7 @@ COLLECTOR_CPP
 
 multipass exec falco-lab -- mkdir -p /home/ubuntu/falco-libs-workshop/src
 multipass transfer "$root_dir/src/main.cpp" "$root_dir/src/CMakeLists.txt" falco-lab:/home/ubuntu/falco-libs-workshop/src/
-echo 'Step 2: Read and count events. Building and running in Ubuntu.'
+echo 'Step 4: Add process names and PIDs. Building and running in Ubuntu.'
 multipass exec falco-lab -- bash -s <<'UBUNTU_STEP'
 set -euo pipefail
 root_dir=/home/ubuntu/falco-libs-workshop
