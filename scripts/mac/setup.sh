@@ -60,8 +60,7 @@ multipass exec falco-lab -- mkdir -p /home/ubuntu/falco-libs-workshop
 if ! multipass exec falco-lab -- test -f /home/ubuntu/falco-libs-workshop/src/main.cpp; then
     multipass transfer --recursive "$root_dir/src" falco-lab:/home/ubuntu/falco-libs-workshop/
 fi
-multipass transfer --recursive "$root_dir/steps" "$root_dir/FALCO_LIBS_REF" \
-    falco-lab:/home/ubuntu/falco-libs-workshop/
+multipass transfer "$root_dir/FALCO_LIBS_REF" falco-lab:/home/ubuntu/falco-libs-workshop/
 multipass exec falco-lab -- bash -s <<'UBUNTU_SETUP'
 set -euo pipefail
 root_dir=/home/ubuntu/falco-libs-workshop
