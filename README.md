@@ -20,37 +20,43 @@ multipass shell falco-lab
 cd ~/falco-libs-workshop
 ```
 
-## Build the collector one step at a time
+## Run each step
 
-Edit `src/main.cpp` **inside Ubuntu**. Each snippet says where it goes.
-
-| Step | Change | What you see |
-| --- | --- | --- |
-| 0 | Run the starter as provided | Attached, then waits for Enter. No event reading yet. |
-| 1 | Paste `snippets/01-read-events.cpp` at STEP 1 | Reads for ten seconds, then prints an event count |
-| 2 | Paste `snippets/02-filter-execs.cpp` at STEP 2 | Counts only process execution exit events |
-| 3 | Paste `snippets/03-process-context.cpp` at STEP 3 | Adds one line per execution with its PID and process name |
-
-After each edit, build and run in VM terminal A:
+All commands below run **inside Ubuntu**. Start in terminal A:
 
 ```sh
-cmake --build build --target workshop-agent -j 1
 sudo ./build/bin/workshop-agent
 ```
 
-For steps 1–3, run `/usr/bin/id` in VM terminal B during the ten-second capture.
+The starter attaches to the kernel, then waits for Enter to stop. It does not
+read events yet. Press Enter before moving to step 1.
+
+Each step script replaces `src/main.cpp` with its complete version, rebuilds the
+collector, and runs it for ten seconds. No manual copying or editing is needed.
+The source is embedded in the script, with comment blocks marking each addition.
+Running a step overwrites any edits to `src/main.cpp`. Run the scripts without
+sudo; they request sudo only when starting capture.
+
+| Command in VM terminal A | What it adds |
+| --- | --- |
+| `bash steps/step-1.sh` | Read events for ten seconds and print a count |
+| `bash steps/step-2.sh` | Filter to process execution exit events |
+| `bash steps/step-3.sh` | Print the PID and process name for each execution |
+
+Wait for “Attached to the Ubuntu kernel,” then run `/usr/bin/id` in VM terminal B.
+Wait for the capture to stop before starting the next step. Each script includes
+all earlier changes, so you can repeat a step or jump directly to step 3.
+
 Step 1 also sees background activity. Step 2 filters the events returned to the
 application; libsinsp still processes the underlying events it needs for state.
 Step 3 prints lines such as `execve pid=1234 name=id`. PIDs and counts will vary.
-
-`snippets/finished.cpp` is the complete collector for reference. If you want to
-skip editing, copy it to `src/main.cpp` inside the VM, then build and run.
+After any step, `cat src/main.cpp` shows the resulting collector.
 
 | Folder | Contents |
 | --- | --- |
 | `presentation/` | Slides and presenter notes |
 | `src/` | The starter and CMake configuration |
-| `snippets/` | Three paste-in snippets and the finished collector |
+| `steps/` | Three standalone scripts containing the complete code for each step |
 | `scripts/` | Standalone Mac and Windows setup |
 
 Stop the VM afterward with `multipass stop falco-lab` from your host terminal.
@@ -60,8 +66,8 @@ It uses libsinsp over libscap's modern eBPF engine. It does not load Falco rules
 The starter attaches without draining events, so it is only a brief first step.
 The next step adds the read loop. This is a teaching example, not a production agent.
 
-Checked on the Mac-hosted Ubuntu 24.04 arm64 VM: every stage compiles, the
-starter attaches and stops, and the finished collector captures process executions.
+All three step scripts were run successfully on a Mac-hosted Ubuntu 24.04 arm64 VM,
+including rebuilding and capturing live events.
 Windows setup still needs a rehearsal.
 
 `FALCO_LIBS_REF` pins the library revision. Setup downloads dependencies into
