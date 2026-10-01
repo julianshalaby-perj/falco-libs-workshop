@@ -14,7 +14,7 @@ set_target_properties(workshop-agent PROPERTIES
 )
 COLLECTOR_CMAKE
 cat > "$root_dir/src/main.cpp" <<'COLLECTOR_CPP'
-// Step 3: filter to process executions. Earlier steps are included.
+// Step 3: add process names and pids. Earlier steps are included.
 #include <chrono>
 #include <cstdint>
 #include <iostream>
@@ -27,10 +27,6 @@ cat > "$root_dir/src/main.cpp" <<'COLLECTOR_CPP'
 int main() {
     try {
         sinsp inspector;
-
-        /* STEP 3 ADDED: return only process execution exit events. */
-        inspector.set_filter("evt.type in (execve, execveat) and evt.dir=<");
-        /* END STEP 3 */
 
         inspector.open_modern_bpf();
         inspector.start_capture();
@@ -52,11 +48,18 @@ int main() {
                 throw std::runtime_error(inspector.getlasterr());
             }
             ++received;
-            std::cout << event->get_name() << '\n';
+
+            /* STEP 3 ADDED: extend the event output with process context. */
+            std::cout << event->get_name();
+            const auto* process = event->get_thread_info();
+            if(process != nullptr) {
+                std::cout << " pid=" << process->m_pid
+                          << " name=" << process->m_comm;
+            }
+            std::cout << '\n';
+            /* END STEP 3 */
         }
-        std::cout << "Read " << received
-                  << " process-execution events."
-                  << std::endl;
+        std::cout << "Read " << received << " events into user space." << std::endl;
         /* END STEP 2 */
 
         inspector.stop_capture();
