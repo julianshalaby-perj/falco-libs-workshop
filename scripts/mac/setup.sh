@@ -60,7 +60,6 @@ multipass exec falco-lab -- mkdir -p /home/ubuntu/falco-libs-workshop
 if ! multipass exec falco-lab -- test -f /home/ubuntu/falco-libs-workshop/src/main.cpp; then
     multipass transfer --recursive "$root_dir/src" falco-lab:/home/ubuntu/falco-libs-workshop/
 fi
-multipass transfer "$root_dir/FALCO_LIBS_REF" falco-lab:/home/ubuntu/falco-libs-workshop/
 multipass exec falco-lab -- bash -s <<'UBUNTU_SETUP'
 set -euo pipefail
 root_dir=/home/ubuntu/falco-libs-workshop
@@ -101,23 +100,15 @@ cmake --version | head -n 1
 echo 'Prerequisites passed. Building the agent.'
 
 libs_dir="$root_dir/.deps/falcosecurity-libs"
-libs_ref=$(tr -d '\r\n' < "$root_dir/FALCO_LIBS_REF")
-if [[ ! $libs_ref =~ ^[0-9a-f]{40}$ ]]; then
-    echo 'FALCO_LIBS_REF must contain a full commit SHA.' >&2
-    exit 1
-fi
 mkdir -p "$root_dir/.deps"
 if [[ ! -d "$libs_dir/.git" ]]; then
     git init "$libs_dir"
     git -C "$libs_dir" remote add origin https://github.com/falcosecurity/libs.git
 fi
+# Use the latest default-branch code on first setup; reuse it on reruns.
 if ! git -C "$libs_dir" rev-parse --verify HEAD >/dev/null 2>&1; then
-    git -C "$libs_dir" fetch --depth 1 origin "$libs_ref"
-    git -C "$libs_dir" checkout --detach "$libs_ref"
-fi
-if [[ $(git -C "$libs_dir" rev-parse HEAD) != "$libs_ref" ]]; then
-    echo 'Dependency revision differs from FALCO_LIBS_REF. Move .deps/ and build/ aside and rebuild.' >&2
-    exit 1
+    git -C "$libs_dir" fetch --depth 1 origin HEAD
+    git -C "$libs_dir" checkout --detach FETCH_HEAD
 fi
 
 # Same integration point as node-agent. Keep our source in place so edits rebuild
