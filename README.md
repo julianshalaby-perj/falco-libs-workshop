@@ -60,11 +60,18 @@ source for that stage. Comments mark the additions. You can inspect or edit the
 files locally. Rerunning a step replaces those two files.
 
 **`run` rebuilds, generates example activity inside Ubuntu, and runs the agent
-for ten seconds.** It transfers the completed log to `logs/latest.log` and displays
-it on
-your laptop. You do not need to enter the VM or run commands in another terminal.
-Each run replaces the previous log. Successful builds stay quiet. If a build
-fails, you see the build error and the agent does not run.
+for ten seconds.** Each run creates a matching pair of files in `logs/`:
+
+| File | Contents |
+| --- | --- |
+| `<run-id>.log` | Build and capture status, event count, and errors |
+| `<run-id>.jsonl` | One JSON object per captured event |
+
+The run ID contains the UTC time and runner process ID. Earlier runs are kept.
+The terminal shows high-level progress and the two file paths. The runner
+transfers completed files from Ubuntu, so bulk syscall output does not pass
+through the terminal. You do not need to enter the VM. Successful builds stay
+quiet. If a build fails, the agent does not run.
 
 The agent stops after capture. The VM stays available for the next step.
 Running `run` before step 1 explains that there is no agent and nothing to collect.
@@ -72,17 +79,16 @@ Running `run` before step 1 explains that there is no agent and nothing to colle
 | Stage | What you see when you run |
 | --- | --- |
 | Before step 1 | No agent yet; nothing to collect |
-| Step 1 | Attached only; no events read or printed |
-| Step 2 | Event names from the unfiltered stream, followed by a count |
-| Step 3 | The same event stream, with PID and process name when available |
+| Step 1 | Attached only; the JSONL file is empty |
+| Step 2 | JSONL records with event name and timestamp; count in the status log |
+| Step 3 | The same JSONL records, enriched with PID and process name when available |
 
 Wait for a run to finish, then apply the next step and run again. Every step
 includes the earlier code, so you can repeat a step or skip ahead.
 
-Step 2 reads events into user space and prints each event name. Expect noisy
-output from common syscalls such as file opens, reads, writes, and process
-executions. Step 3 adds PID and process name when available. Events without
-process context still print. Counts and PIDs vary with activity in the VM.
+Step 2 reads events into user space and writes JSONL records for common
+syscalls such as file opens, reads, writes, and process executions. Step 3 adds PID and process name when available. Events without
+process context still appear, without the enrichment fields. Counts and PIDs vary with activity in the VM.
 
 | Folder | Contents |
 | --- | --- |
@@ -90,7 +96,7 @@ process context still print. Counts and PIDs vary with activity in the VM.
 | `scripts/mac/` | Mac setup, steps 1–3, and run |
 | `scripts/windows/` | Windows setup, steps 1–3, and run |
 | `src/` | Created by step 1, then updated by later steps |
-| `logs/` | Latest agent output, created by run |
+| `logs/` | A status log and syscall JSONL file for each run |
 
 Stop the VM afterward with `multipass stop falco-lab` from your host terminal.
 
@@ -99,7 +105,7 @@ It uses libsinsp over libscap's modern eBPF engine. The scheduler-switch
 tracepoint is disabled because those events are not syscalls. Syscall capture
 otherwise uses the default set.
 There is no application filter or Falco rule engine. Every event returned
-successfully by the library is printed, including both syscall directions when
+successfully by the library is written to JSONL, including both syscall directions when
 available. This is the library's event stream, not a guarantee of every syscall
 on the machine.
 This is a teaching example, not a production agent.
@@ -107,6 +113,10 @@ This is a teaching example, not a production agent.
 First setup downloads the latest code from Falco’s default branch into `.deps/`
 inside the VM. Rerunning setup reuses that checkout and preserves source files.
 Dependencies retain their upstream licenses. No node-agent code is vendored.
+
+The Mac setup and complete three-step sequence passed on the existing Ubuntu
+VM, reusing cached Falco libraries. Each JSONL record parsed successfully, counts
+matched the status logs, and the agent stopped after every run.
 
 Earlier versions passed script parsing and source-generation checks on Windows
 Server 2022 with Windows PowerShell 5.1 and PowerShell 7. The full Multipass
