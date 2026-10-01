@@ -93,12 +93,31 @@ process context still appear, without the enrichment fields. Counts and PIDs var
 | Folder | Contents |
 | --- | --- |
 | `presentation/` | Slides and presenter notes |
-| `scripts/mac/` | Mac setup, steps 1–3, and run |
-| `scripts/windows/` | Windows setup, steps 1–3, and run |
+| `scripts/mac/` | Mac setup, steps 1–3, run, and teardown |
+| `scripts/windows/` | Windows setup, steps 1–3, run, and teardown |
 | `src/` | Created by step 1, then updated by later steps |
 | `logs/` | A status log and syscall JSONL file for each run |
 
-Stop the VM afterward with `multipass stop falco-lab` from your host terminal.
+## When you are done
+
+Run teardown from the same host terminal:
+
+```sh
+# Mac
+bash scripts/mac/teardown.sh
+```
+
+```powershell
+# Windows
+powershell -ExecutionPolicy Bypass -File scripts/windows/teardown.ps1
+```
+
+Confirm with `y` to permanently delete the `falco-lab` VM and its disk, including
+the dependencies and builds inside it. This ends anything running inside that VM.
+Your local source and logs remain. Other VMs and the Multipass installation stay.
+To repeat the workshop, run setup again to recreate the VM and dependencies.
+
+## About the collector
 
 The collector monitors the Ubuntu VM's kernel, not your Mac or Windows host.
 It uses libsinsp over libscap's modern eBPF engine. The scheduler-switch
