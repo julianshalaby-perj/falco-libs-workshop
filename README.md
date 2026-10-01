@@ -60,7 +60,8 @@ source for that stage. Comments mark the additions. You can inspect or edit the
 files locally. Rerunning a step replaces those two files.
 
 **`run` rebuilds, generates example activity inside Ubuntu, and runs the agent
-for ten seconds.** It displays the result and saves it to `logs/latest.log` on
+for ten seconds.** It transfers the completed log to `logs/latest.log` and displays
+it on
 your laptop. You do not need to enter the VM or run commands in another terminal.
 Each run replaces the previous log. Successful builds stay quiet. If a build
 fails, you see the build error and the agent does not run.
@@ -94,7 +95,9 @@ process context still print. Counts and PIDs vary with activity in the VM.
 Stop the VM afterward with `multipass stop falco-lab` from your host terminal.
 
 The collector monitors the Ubuntu VM's kernel, not your Mac or Windows host.
-It uses libsinsp over libscap's modern eBPF engine with its default capture set.
+It uses libsinsp over libscap's modern eBPF engine. The scheduler-switch
+tracepoint is disabled because those events are not syscalls. Syscall capture
+otherwise uses the default set.
 There is no application filter or Falco rule engine. Every event returned
 successfully by the library is printed, including both syscall directions when
 available. This is the library's event stream, not a guarantee of every syscall
