@@ -11,8 +11,10 @@ The live session starts at slide 3 and takes roughly 45–60 minutes.
 
 Clone this repo, then run `bash scripts/setup.sh` on macOS or
 `powershell -ExecutionPolicy Bypass -File scripts/setup.ps1` on Windows.
-Install Git and Multipass first if missing. Setup creates the Ubuntu VM, copies
-the source, installs dependencies, and builds the agent. Re-running setup keeps
+If Multipass is missing, setup asks before downloading and running Canonical’s
+installer. Approve the OS administrator prompt and, on Windows, complete the
+installer. If it requests a restart, reboot and rerun setup. Setup then creates
+the Ubuntu VM, copies the source, installs dependencies, and builds the agent. Re-running setup keeps
 your existing VM source edits. No GitHub account is needed.
 
 | Folder | Contents |
