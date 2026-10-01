@@ -14,7 +14,7 @@ set_target_properties(workshop-agent PROPERTIES
 )
 COLLECTOR_CMAKE
 cat > "$root_dir/src/main.cpp" <<'COLLECTOR_CPP'
-// Step 2: read and count events. Earlier steps are included.
+// Step 2: read and print events. Earlier steps are included.
 #include <chrono>
 #include <cstdint>
 #include <iostream>
@@ -32,7 +32,7 @@ int main() {
         inspector.start_capture();
         std::cout << "Attached to the Ubuntu kernel." << std::endl;
 
-        /* STEP 2 ADDED: read events for ten seconds and count them. */
+        /* STEP 2 ADDED: read and print events for ten seconds. */
         std::uint64_t received = 0;
         const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(10);
         while(std::chrono::steady_clock::now() < until) {
@@ -48,9 +48,10 @@ int main() {
                 throw std::runtime_error(inspector.getlasterr());
             }
             ++received;
+            std::cout << event->get_name() << '\n';
         }
         std::cout << "Read " << received
-                  << " events into user space. Individual events are not printed yet."
+                  << " events into user space."
                   << std::endl;
         /* END STEP 2 */
 

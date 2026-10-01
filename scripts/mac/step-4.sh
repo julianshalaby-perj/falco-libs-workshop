@@ -36,7 +36,7 @@ int main() {
         inspector.start_capture();
         std::cout << "Attached to the Ubuntu kernel." << std::endl;
 
-        /* STEP 2 ADDED: read events for ten seconds and count them. */
+        /* STEP 2 ADDED: read and print events for ten seconds. */
         std::uint64_t received = 0;
         const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(10);
         while(std::chrono::steady_clock::now() < until) {
@@ -53,7 +53,7 @@ int main() {
             }
             ++received;
 
-            /* STEP 4 ADDED: use libsinsp process context. */
+            /* STEP 4 ADDED: extend the event output with process context. */
             const auto* process = event->get_thread_info();
             if(process != nullptr) {
                 std::cout << event->get_name()
