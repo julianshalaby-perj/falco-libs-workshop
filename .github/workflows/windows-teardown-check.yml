@@ -6,17 +6,104 @@ on:
 permissions:
   contents: read
 jobs:
-  teardown:
+  powershell:
     runs-on: windows-2022
     timeout-minutes: 8
-    strategy:
-      fail-fast: false
-      matrix:
-        shell: [powershell, pwsh]
     steps:
       - uses: actions/checkout@v4
       - name: Validate teardown behavior
-        shell: ${{ matrix.shell }}
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $Engine = (Get-Process -Id $PID).Path
+          Write-Host "Testing on $([Environment]::OSVersion), PowerShell $($PSVersionTable.PSVersion)"
+          Get-ChildItem scripts/windows/*.ps1 | ForEach-Object {
+              $Tokens = $null
+              $Errors = $null
+              [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$Tokens, [ref]$Errors) | Out-Null
+              if ($Errors) { throw ($Errors | Out-String) }
+          }
+          $TestRoot = Join-Path $env:RUNNER_TEMP "teardown checks $PID"
+          New-Item -ItemType Directory -Path $TestRoot -Force | Out-Null
+          $FakeBin = Join-Path $TestRoot 'bin'
+          New-Item -ItemType Directory -Path $FakeBin | Out-Null
+          $Mock = @'
+          @echo off
+          >>"%CHECK_CALLS%" echo %*
+          if "%1 %2 %3"=="list --format csv" goto list
+          if "%1 %2 %3"=="delete --purge falco-lab" goto delete
+          exit /b 99
+          :list
+          if "%CHECK_SCENARIO%"=="daemon-error" exit /b 7
+          echo Name,State,IPv4,IPv6,Release,AllIPv4
+          echo other-vm,Running,192.0.2.2,,Ubuntu 24.04 LTS,"192.0.2.2"
+          if exist "%CHECK_STATE%" echo falco-lab,%CHECK_VM_STATE%,192.0.2.3,,Ubuntu 24.04 LTS,"192.0.2.3"
+          exit /b 0
+          :delete
+          if "%CHECK_SCENARIO%"=="delete-error" exit /b 9
+          del "%CHECK_STATE%"
+          exit /b 0
+          '@
+          Set-Content (Join-Path $FakeBin 'multipass.cmd') $Mock -Encoding ASCII
+          $Script = (Resolve-Path scripts/windows/teardown.ps1).Path
+          $Cases = @(
+              @{Name='confirm-running'; Answer='y'; State='Running'; Delete=$true; Exit=0},
+              @{Name='confirm-stopped'; Answer='YES'; State='Stopped'; Delete=$true; Exit=0},
+              @{Name='confirm-deleted'; Answer='yes'; State='Deleted'; Delete=$true; Exit=0},
+              @{Name='cancel-no'; Answer='n'; State='Running'; Delete=$false; Exit=0},
+              @{Name='cancel-default'; Answer=''; State='Running'; Delete=$false; Exit=0},
+              @{Name='cancel-invalid'; Answer='maybe'; State='Running'; Delete=$false; Exit=0},
+              @{Name='absent'; Answer='y'; State='Running'; Delete=$false; Exit=0},
+              @{Name='missing-cli'; Answer='y'; State='Running'; Delete=$false; Exit=0},
+              @{Name='daemon-error'; Answer='y'; State='Running'; Delete=$false; Exit=1},
+              @{Name='delete-error'; Answer='y'; State='Running'; Delete=$true; Exit=1}
+          )
+          foreach ($Case in $Cases) {
+              $CallsFile = Join-Path $TestRoot ($Case.Name + '.calls')
+              $StateFile = Join-Path $TestRoot ($Case.Name + '.vm')
+              if ($Case.Name -ne 'absent') { Set-Content $StateFile 'exists' }
+              $Info = New-Object System.Diagnostics.ProcessStartInfo
+              $Info.FileName = $Engine
+              $Info.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + $Script + '"'
+              $Info.UseShellExecute = $false
+              $Info.RedirectStandardInput = $true
+              $Info.RedirectStandardOutput = $true
+              $Info.RedirectStandardError = $true
+              $Info.EnvironmentVariables['ProgramFiles'] = (Join-Path $TestRoot 'no-installed-tools')
+              $Info.EnvironmentVariables['Path'] = "$FakeBin;$env:SystemRoot\System32"
+              if ($Case.Name -eq 'missing-cli') { $Info.EnvironmentVariables['Path'] = "$env:SystemRoot\System32" }
+              $Info.EnvironmentVariables['CHECK_CALLS'] = $CallsFile
+              $Info.EnvironmentVariables['CHECK_STATE'] = $StateFile
+              $Info.EnvironmentVariables['CHECK_SCENARIO'] = $Case.Name
+              $Info.EnvironmentVariables['CHECK_VM_STATE'] = $Case.State
+              $Process = New-Object System.Diagnostics.Process
+              $Process.StartInfo = $Info
+              $Process.Start() | Out-Null
+              $OutTask = $Process.StandardOutput.ReadToEndAsync()
+              $ErrTask = $Process.StandardError.ReadToEndAsync()
+              $Process.StandardInput.WriteLine($Case.Answer)
+              $Process.StandardInput.Close()
+              if (-not $Process.WaitForExit(30000)) { $Process.Kill(); throw "Hung: $($Case.Name)" }
+              $Output = $OutTask.Result + $ErrTask.Result
+              $Calls = @()
+              if (Test-Path $CallsFile) { $Calls = @(Get-Content $CallsFile) }
+              if ($Process.ExitCode -ne $Case.Exit) { throw "$($Case.Name): exit $($Process.ExitCode): $Output" }
+              $Deletes = @($Calls | Where-Object { $_ -eq 'delete --purge falco-lab' })
+              if ($Deletes.Count -ne [int]$Case.Delete) { throw "$($Case.Name): unexpected calls: $Calls" }
+              if (@($Calls | Where-Object { $_ -notin @('list --format csv','delete --purge falco-lab') }).Count) { throw "Unsafe command: $Calls" }
+              if ($Case.Delete -and $Case.Exit -eq 0 -and (Test-Path $StateFile)) { throw 'VM state still exists' }
+              if ($Case.Name -eq 'delete-error' -and $Output -match 'Workshop VM and disk removed') { throw 'False success message' }
+              if ($Case.Name -eq 'daemon-error' -and $Output -match 'Nothing to tear down') { throw 'Daemon failure hidden' }
+              Write-Host "PASS $($Case.Name)"
+          }
+          Write-Host 'All Windows teardown scenarios passed. Multipass calls were simulated; no live VM was deleted.'
+  pwsh:
+    runs-on: windows-2022
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate teardown behavior
+        shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $Engine = (Get-Process -Id $PID).Path
