@@ -4,3 +4,6 @@ build/
 .idea/
 *.jsonl
 .DS_Store
+
+# Created by the numbered workshop scripts.
+/src/
