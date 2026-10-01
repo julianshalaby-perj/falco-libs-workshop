@@ -60,7 +60,7 @@ multipass exec falco-lab -- mkdir -p /home/ubuntu/falco-libs-workshop
 if ! multipass exec falco-lab -- test -f /home/ubuntu/falco-libs-workshop/src/main.cpp; then
     multipass transfer --recursive "$root_dir/src" falco-lab:/home/ubuntu/falco-libs-workshop/
 fi
-multipass transfer --recursive "$root_dir/scripts" "$root_dir/FALCO_LIBS_REF" \
+multipass transfer --recursive "$root_dir/snippets" "$root_dir/FALCO_LIBS_REF" \
     falco-lab:/home/ubuntu/falco-libs-workshop/
 multipass exec falco-lab -- bash -s <<'UBUNTU_SETUP'
 set -euo pipefail
@@ -74,7 +74,7 @@ fi
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
     build-essential ca-certificates clang cmake git pkg-config \
-    libelf-dev zlib1g-dev linux-tools-common "linux-tools-$(uname -r)" jq nano
+    libelf-dev zlib1g-dev linux-tools-common "linux-tools-$(uname -r)" nano
 
 printf 'Kernel: %s\nArchitecture: %s\n' "$(uname -r)" "$(uname -m)"
 case $(uname -m) in
@@ -91,7 +91,7 @@ if [[ ! -r /sys/kernel/btf/vmlinux ]]; then
     echo 'Missing readable /sys/kernel/btf/vmlinux. Use the stock Ubuntu VM kernel.' >&2
     exit 1
 fi
-for tool in cmake make git g++ clang bpftool pkg-config jq nano; do
+for tool in cmake make git g++ clang bpftool pkg-config nano; do
     if ! command -v "$tool" >/dev/null; then
         printf 'Missing %s. Rerun your setup script on the host.\n' "$tool" >&2
         exit 1
@@ -138,7 +138,7 @@ cmake -S "$libs_dir" -B "$root_dir/build" \
 cmake --build "$root_dir/build" --target workshop-agent --parallel "${BUILD_JOBS:-1}"
 printf '\nBuilt: %s/build/bin/workshop-agent\n' "$root_dir"
 
-"$root_dir/build/bin/workshop-agent" --help
+echo 'Setup complete. Enter the VM, then run sudo ./build/bin/workshop-agent.'
 # End of Ubuntu setup.
 UBUNTU_SETUP
 echo 'Enter the workshop VM: multipass shell falco-lab'
