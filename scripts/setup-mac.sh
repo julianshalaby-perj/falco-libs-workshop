@@ -44,6 +44,15 @@ multipass list >/dev/null
 if multipass info falco-lab >/dev/null 2>&1; then
     multipass start falco-lab
 else
+    echo 'Waiting for the Ubuntu 24.04 image catalog...'
+    for attempt in {1..30}; do
+        if multipass find release:24.04 >/dev/null 2>&1; then break; fi
+        sleep 2
+    done
+    if ! multipass find release:24.04 >/dev/null; then
+        echo 'Ubuntu image catalog is still unavailable. Rerun setup in a moment.' >&2
+        exit 1
+    fi
     multipass launch 24.04 --name falco-lab --cpus 4 --memory 8G --disk 30G
 fi
 multipass exec falco-lab -- mkdir -p /home/ubuntu/falco-libs-workshop

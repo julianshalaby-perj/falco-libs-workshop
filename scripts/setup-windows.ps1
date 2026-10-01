@@ -63,6 +63,24 @@ $Instances = Invoke-LabMultipass -CommandArgs @('list', '--format', 'json') | Co
 if ($Instances.list.name -contains 'falco-lab') {
     Invoke-LabMultipass -CommandArgs @('start', 'falco-lab')
 } else {
+    Write-Host 'Waiting for the Ubuntu 24.04 image catalog...'
+    $ImageReady = $false
+    try {
+        $ErrorActionPreference = 'Continue'
+        for ($Attempt = 0; $Attempt -lt 30; $Attempt++) {
+            & multipass find release:24.04 *> $null
+            if ($LASTEXITCODE -eq 0) {
+                $ImageReady = $true
+                break
+            }
+            Start-Sleep -Seconds 2
+        }
+    } finally {
+        $ErrorActionPreference = 'Stop'
+    }
+    if (-not $ImageReady) {
+        throw 'Ubuntu image catalog is still unavailable. Rerun setup in a moment.'
+    }
     Invoke-LabMultipass -CommandArgs @(
         'launch', '24.04', '--name', 'falco-lab', '--cpus', '4', '--memory', '8G', '--disk', '30G'
     )
