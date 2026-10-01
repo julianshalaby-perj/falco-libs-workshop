@@ -76,10 +76,14 @@ done
 result=0
 wait "$agent_pid" || result=$?
 trap - EXIT HUP INT TERM
-cat "$capture_log"
 exit "$result"
 # End of capture.
 '@
-$UbuntuCapture.Replace("`r", '') | & multipass exec falco-lab -- bash -s | Tee-Object -FilePath $LogFile
-if ($LASTEXITCODE -ne 0) { throw "Agent failed (exit $LASTEXITCODE). Output: $LogFile" }
+$UbuntuCapture.Replace("`r", '') | & multipass exec falco-lab -- bash -s
+$CaptureResult = $LASTEXITCODE
+# Transfer the completed file instead of piping bulk output through exec.
+& multipass transfer falco-lab:/home/ubuntu/falco-libs-workshop/build/workshop-capture.log $LogFile
+if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve the capture log from Ubuntu.' }
+Get-Content -LiteralPath $LogFile
+if ($CaptureResult -ne 0) { throw "Agent failed (exit $CaptureResult). Output: $LogFile" }
 Write-Host "Saved output: $LogFile"

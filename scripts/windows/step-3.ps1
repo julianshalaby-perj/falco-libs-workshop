@@ -29,6 +29,8 @@ int main() {
         sinsp inspector;
 
         inspector.open_modern_bpf();
+        // Scheduler switches are not syscalls; do not collect that tracepoint.
+        inspector.mark_ppm_sc_of_interest(PPM_SC_SCHED_SWITCH, false);
         inspector.start_capture();
         std::cout << "Attached to the Ubuntu kernel." << std::endl;
 
