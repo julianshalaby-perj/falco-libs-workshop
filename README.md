@@ -25,8 +25,6 @@ bash scripts/mac/step-2.sh
 bash scripts/mac/run.sh
 bash scripts/mac/step-3.sh
 bash scripts/mac/run.sh
-bash scripts/mac/step-4.sh
-bash scripts/mac/run.sh
 ```
 
 ## Windows
@@ -47,8 +45,6 @@ powershell -ExecutionPolicy Bypass -File scripts/windows/run.ps1
 powershell -ExecutionPolicy Bypass -File scripts/windows/step-2.ps1
 powershell -ExecutionPolicy Bypass -File scripts/windows/run.ps1
 powershell -ExecutionPolicy Bypass -File scripts/windows/step-3.ps1
-powershell -ExecutionPolicy Bypass -File scripts/windows/run.ps1
-powershell -ExecutionPolicy Bypass -File scripts/windows/step-4.ps1
 powershell -ExecutionPolicy Bypass -File scripts/windows/run.ps1
 ```
 
@@ -77,35 +73,39 @@ Running `run` before step 1 explains that there is no agent and nothing to colle
 | Before step 1 | No agent yet; nothing to collect |
 | Step 1 | Attached only; no events read or printed |
 | Step 2 | Event names from the unfiltered stream, followed by a count |
-| Step 3 | Only process-execution event names, followed by a count |
-| Step 4 | Execution lines with PID and process name, including the automatic `id` command |
+| Step 3 | The same event stream, with PID and process name when available |
 
 Wait for a run to finish, then apply the next step and run again. Every step
 includes the earlier code, so you can repeat a step or skip ahead.
 
 Step 2 reads events into user space and prints each event name. Expect noisy
-output. Step 3 filters that output to process executions. Step 4 adds PID and
-process name. Counts and PIDs vary with activity in the VM.
+output from common syscalls such as file opens, reads, writes, and process
+executions. Step 3 adds PID and process name when available. Events without
+process context still print. Counts and PIDs vary with activity in the VM.
 
 | Folder | Contents |
 | --- | --- |
 | `presentation/` | Slides and presenter notes |
-| `scripts/mac/` | Mac setup, steps 1–4, and run |
-| `scripts/windows/` | Windows setup, steps 1–4, and run |
+| `scripts/mac/` | Mac setup, steps 1–3, and run |
+| `scripts/windows/` | Windows setup, steps 1–3, and run |
 | `src/` | Created by step 1, then updated by later steps |
 | `logs/` | Latest agent output, created by run |
 
 Stop the VM afterward with `multipass stop falco-lab` from your host terminal.
 
 The collector monitors the Ubuntu VM's kernel, not your Mac or Windows host.
-It uses libsinsp over libscap's modern eBPF engine. It does not load Falco rules.
+It uses libsinsp over libscap's modern eBPF engine with its default capture set.
+There is no application filter or Falco rule engine. Every event returned
+successfully by the library is printed, including both syscall directions when
+available. This is the library's event stream, not a guarantee of every syscall
+on the machine.
 This is a teaching example, not a production agent.
 
 First setup downloads the latest code from Falco’s default branch into `.deps/`
 inside the VM. Rerunning setup reuses that checkout and preserves source files.
 Dependencies retain their upstream licenses. No node-agent code is vendored.
 
-Script parsing, steps 1–4, and running before source exists passed on Windows
+Earlier versions passed script parsing and source-generation checks on Windows
 Server 2022 with Windows PowerShell 5.1 and PowerShell 7. The full Multipass
 installation, VM launch, build, and capture flow still needs a Windows rehearsal.
 A fresh build against the latest upstream libraries has not been verified.
