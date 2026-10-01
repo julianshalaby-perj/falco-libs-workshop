@@ -1,0 +1,55 @@
+name: Windows workshop check
+on:
+  workflow_dispatch:
+  push:
+    paths: [.github/workflows/windows-check.yml]
+permissions:
+  contents: read
+jobs:
+  scripts:
+    runs-on: windows-2022
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        shell: [powershell, pwsh]
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - name: Check Windows scripts and generated source
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Write-Host "Windows: $([Environment]::OSVersion.VersionString)"
+          Write-Host "PowerShell: $($PSVersionTable.PSVersion)"
+          $repo = Join-Path $env:RUNNER_TEMP 'workshop with spaces'
+          git clone --depth 1 https://github.com/julianshalaby-perj/falco-libs-workshop.git "$repo"
+          if ($LASTEXITCODE -ne 0) { throw 'Clone failed.' }
+          foreach ($file in Get-ChildItem "$repo/scripts/windows/*.ps1") {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null
+            if ($parseErrors.Count -ne 0) { throw "$($file.Name): $parseErrors" }
+            Write-Host "Parsed $($file.Name)"
+          }
+          $engine = (Get-Process -Id $PID).Path
+          $before = & $engine -NoProfile -ExecutionPolicy Bypass -File "$repo/scripts/windows/run.ps1"
+          if ($LASTEXITCODE -ne 0 -or "$before" -notmatch 'No agent yet') { throw "Unexpected result: $before" }
+          if (Test-Path "$repo/src") { throw 'Run unexpectedly created source files.' }
+          Push-Location $env:RUNNER_TEMP
+          try {
+            foreach ($step in 1..4) {
+              & "$repo/scripts/windows/step-$step.ps1"
+              $main = Get-Content "$repo/src/main.cpp" -Raw
+              $cmake = Get-Content "$repo/src/CMakeLists.txt" -Raw
+              if (-not $cmake.Contains('add_executable(workshop-agent main.cpp)')) { throw 'Missing CMake target.' }
+              if (-not $main.Contains('inspector.open_modern_bpf()')) { throw 'Missing attachment code.' }
+              if ($step -eq 1 -and $main.Contains('inspector.next(')) { throw 'Step 1 unexpectedly reads events.' }
+              if ($step -ge 2 -and -not $main.Contains('inspector.next(')) { throw 'Missing read loop.' }
+              if ($step -ge 3 -and -not $main.Contains('inspector.set_filter(')) { throw 'Missing filter.' }
+              if ($step -eq 4 -and $main -notmatch 'process->m_comm') { throw 'Missing process context.' }
+              if ($main.Contains("`r")) { throw 'Generated C++ contains CRLF.' }
+              Write-Host "Step $step passed with a path containing spaces and a different working directory."
+            }
+          } finally { Pop-Location }
+          Write-Host 'PASS: Windows parsing, source generation, and run-before-source behavior.'
+          Write-Host 'NOT TESTED: Multipass installation, VM launch, compilation, or live capture on Windows.'
