@@ -23,7 +23,7 @@ set_target_properties(workshop-agent PROPERTIES
 )
 '@
 $Source = @'
-// Step 2: read and count events. Earlier steps are included.
+// Step 4: add process names and pids. Earlier steps are included.
 #include <chrono>
 #include <cstdint>
 #include <iostream>
@@ -36,6 +36,10 @@ $Source = @'
 int main() {
     try {
         sinsp inspector;
+
+        /* STEP 3 ADDED: return only process execution exit events. */
+        inspector.set_filter("evt.type in (execve, execveat) and evt.dir=<");
+        /* END STEP 3 */
 
         inspector.open_modern_bpf();
         inspector.start_capture();
@@ -57,6 +61,15 @@ int main() {
                 throw std::runtime_error(inspector.getlasterr());
             }
             ++received;
+
+            /* STEP 4 ADDED: use libsinsp process context. */
+            const auto* process = event->get_thread_info();
+            if(process != nullptr) {
+                std::cout << event->get_name()
+                          << " pid=" << process->m_pid
+                          << " name=" << process->m_comm << std::endl;
+            }
+            /* END STEP 4 */
         }
         std::cout << "Received " << received << " events." << std::endl;
         /* END STEP 2 */
@@ -78,7 +91,7 @@ int main() {
 if ($LASTEXITCODE -ne 0) { throw 'Could not create the source folder in Ubuntu.' }
 & multipass transfer (Join-Path $SourceDir 'main.cpp') (Join-Path $SourceDir 'CMakeLists.txt') falco-lab:/home/ubuntu/falco-libs-workshop/src/
 if ($LASTEXITCODE -ne 0) { throw 'Could not copy the source into Ubuntu.' }
-Write-Host 'Step 2: Read and count events. Building and running in Ubuntu.'
+Write-Host 'Step 4: Add process names and PIDs. Building and running in Ubuntu.'
 $UbuntuStep = @'
 set -euo pipefail
 root_dir=/home/ubuntu/falco-libs-workshop

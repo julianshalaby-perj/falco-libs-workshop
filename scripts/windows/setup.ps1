@@ -1,5 +1,4 @@
 $ErrorActionPreference = 'Stop'
-$WorkshopRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 
 function Invoke-LabMultipass {
     param([string[]] $CommandArgs)
@@ -87,14 +86,6 @@ if ($Instances.list.name -contains 'falco-lab') {
 }
 Invoke-LabMultipass -CommandArgs @('exec', 'falco-lab', '--', 'mkdir', '-p', '/home/ubuntu/falco-libs-workshop')
 
-# Keep attendees' source edits when setup is run again.
-& multipass exec falco-lab -- test -f /home/ubuntu/falco-libs-workshop/src/main.cpp
-if ($LASTEXITCODE -ne 0) {
-    Invoke-LabMultipass -CommandArgs @(
-        'transfer', '--recursive', (Join-Path $WorkshopRoot 'src'),
-        'falco-lab:/home/ubuntu/falco-libs-workshop/'
-    )
-}
 # Run the Ubuntu setup below directly inside the VM.
 $UbuntuSetup = @'
 set -euo pipefail
@@ -133,7 +124,7 @@ for tool in cmake make git g++ clang bpftool pkg-config nano; do
 done
 bpftool version
 cmake --version | head -n 1
-echo 'Prerequisites passed. Building the agent.'
+echo 'Prerequisites passed. Building Falco libraries.'
 
 libs_dir="$root_dir/.deps/falcosecurity-libs"
 mkdir -p "$root_dir/.deps"
@@ -147,24 +138,17 @@ if ! git -C "$libs_dir" rev-parse --verify HEAD >/dev/null 2>&1; then
     git -C "$libs_dir" checkout --detach FETCH_HEAD
 fi
 
-# Same integration point as node-agent. Keep our source in place so edits rebuild
-# only the agent. Appending this once also makes reruns independent of internet.
-examples="$libs_dir/userspace/libsinsp/examples/CMakeLists.txt"
-entry='add_subdirectory("${WORKSHOP_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/workshop")'
-if ! grep -Fqx "$entry" "$examples"; then
-    printf '\n%s\n' "$entry" >> "$examples"
-fi
 cmake -S "$libs_dir" -B "$root_dir/build" \
     -DCMAKE_BUILD_TYPE=Release \
     -DUSE_BUNDLED_DEPS=ON \
     -DBUILD_LIBSCAP_MODERN_BPF=ON \
     -DCREATE_TEST_TARGETS=OFF \
-    -DWORKSHOP_SOURCE_DIR="$root_dir/src"
+    -DBUILD_LIBSINSP_EXAMPLES=OFF
 # Keep memory use predictable on laptops. Set BUILD_JOBS=2 if the VM has room.
-cmake --build "$root_dir/build" --target workshop-agent --parallel "${BUILD_JOBS:-1}"
-printf '\nBuilt: %s/build/bin/workshop-agent\n' "$root_dir"
+cmake --build "$root_dir/build" --target sinsp --parallel "${BUILD_JOBS:-1}"
 
-echo 'Setup complete. Enter the VM, then run sudo ./build/bin/workshop-agent.'
+
+echo 'Setup complete. Run step 1 from your Mac or Windows scripts folder.'
 # End of Ubuntu setup.
 '@
 $UbuntuSetup.Replace("`r", '') | & multipass exec falco-lab -- bash -s
