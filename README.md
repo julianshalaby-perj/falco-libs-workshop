@@ -1,7 +1,8 @@
 # Falco libs workshop · BSides Atlanta
 
 Build a barebones C++ syscall collector with libscap and libsinsp.
-Follow along or watch the presenter. The collector runs inside an Ubuntu VM.
+Follow along or watch the presenter. Use one terminal on your Mac or Windows
+laptop for the entire workshop. The scripts handle Ubuntu automatically.
 
 **[Download the workshop slides](https://github.com/julianshalaby-perj/falco-libs-workshop/raw/refs/heads/main/presentation/falco-libs-intro.pptx)**
 
@@ -62,42 +63,29 @@ The repo starts without collector source files. **Step 1 creates `src/` with
 source for that stage. Comments mark the additions. You can inspect or edit the
 files locally. Rerunning a step replaces those two files.
 
-**`run` copies your current source into Ubuntu, rebuilds, runs the agent for ten
-seconds, and saves its output to `logs/latest.log` on your laptop.** It displays
-the same output in your terminal. Each run replaces the previous log. Build
-output stays in the terminal. If the build fails, the agent does not run.
+**`run` rebuilds, generates example activity inside Ubuntu, and runs the agent
+for ten seconds.** It displays the result and saves it to `logs/latest.log` on
+your laptop. You do not need to enter the VM or run commands in another terminal.
+Each run replaces the previous log. Successful builds stay quiet. If a build
+fails, you see the build error and the agent does not run.
 
 The agent stops after capture. The VM stays available for the next step.
-Running `run` before step 1 prints “No agent yet. Run step 1.”
+Running `run` before step 1 explains that there is no agent and nothing to collect.
 
-| Step | What it adds |
+| Stage | What you see when you run |
 | --- | --- |
-| 1 | Create the barebones source; `run` attaches without reading events |
-| 2 | Read events for ten seconds and print a count |
-| 3 | Filter to process execution exit events |
-| 4 | Print the PID and process name for each execution |
+| Before step 1 | No agent yet; nothing to collect |
+| Step 1 | Attached only; no events read or printed |
+| Step 2 | Number of events read into user space; individual events are not printed yet |
+| Step 3 | Number of process-execution events after filtering |
+| Step 4 | Execution lines with PID and process name, including the automatic `id` command |
 
-Keep terminal A on your laptop for running the step and run scripts. Open a second terminal,
-B, and enter Ubuntu:
+Wait for a run to finish, then apply the next step and run again. Every step
+includes the earlier code, so you can repeat a step or skip ahead.
 
-```sh
-multipass shell falco-lab
-cd ~/falco-libs-workshop
-```
-
-When running steps 2–4, wait for “Attached to the Ubuntu kernel” in A, then run this in B:
-
-```sh
-/usr/bin/id
-```
-
-Each capture stops after ten seconds. Wait for it to finish before running the
-next step. Each step script includes all earlier changes, so you can repeat a step
-or jump ahead after setup.
-
-Step 2 also sees background activity. Step 3 filters the events returned to the
-application; libsinsp still processes the underlying events it needs for state.
-Step 4 prints lines such as `execve pid=1234 name=id`. PIDs and counts will vary.
+Step 2 really does read events into user space; it just counts them instead of
+printing each one. Step 3 narrows those events to process executions. Step 4 adds
+the details. Counts and PIDs vary with activity in the VM.
 
 | Folder | Contents |
 | --- | --- |
