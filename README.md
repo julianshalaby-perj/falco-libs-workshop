@@ -117,7 +117,9 @@ First setup downloads the latest code from Falco’s default branch into `.deps/
 inside the VM. Rerunning setup reuses that checkout and preserves source files.
 Dependencies retain their upstream licenses. No node-agent code is vendored.
 
-Windows scripts still need a native Windows rehearsal. A fresh build against the
-latest upstream libraries has not been verified.
+Script parsing, steps 1–4, and running before source exists passed on Windows
+Server 2022 with Windows PowerShell 5.1 and PowerShell 7. The full Multipass
+installation, VM launch, build, and capture flow still needs a Windows rehearsal.
+A fresh build against the latest upstream libraries has not been verified.
 
 [Upstream Falco libs](https://github.com/falcosecurity/libs)
