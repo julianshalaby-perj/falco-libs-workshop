@@ -60,14 +60,16 @@ source for that stage. Comments mark the additions. You can inspect or edit the
 files locally. Rerunning a step replaces those two files.
 
 **`run` rebuilds, generates example activity inside Ubuntu, and runs the agent
-for ten seconds.** Each run creates a matching pair of files in `logs/`:
+for ten seconds.** Each stage saves a matching pair of files in `logs/`:
 
 | File | Contents |
 | --- | --- |
-| `<run-id>.log` | Build and capture status, event count, and errors |
-| `<run-id>.jsonl` | One JSON object per captured event |
+| `stage-1.log`, `stage-2.log`, `stage-3.log` | Build and capture status, event count, and errors |
+| `stage-1.jsonl`, `stage-2.jsonl`, `stage-3.jsonl` | One JSON object per captured event |
 
-The run ID contains the UTC time and runner process ID. Earlier runs are kept.
+Rerunning a stage replaces that stage's files. Other stages' files stay.
+Before step 1, the filenames are `stage-0.log` and `stage-0.jsonl`.
+The runner reads the stage from the first comment in `src/main.cpp`.
 The terminal shows high-level progress and the two file paths. The runner
 transfers completed files from Ubuntu, so bulk syscall output does not pass
 through the terminal. You do not need to enter the VM. Successful builds stay
@@ -96,7 +98,7 @@ process context still appear, without the enrichment fields. Counts and PIDs var
 | `scripts/mac/` | Mac setup, steps 1–3, run, and teardown |
 | `scripts/windows/` | Windows setup, steps 1–3, run, and teardown |
 | `src/` | Created by step 1, then updated by later steps |
-| `logs/` | A status log and syscall JSONL file for each run |
+| `logs/` | A status log and syscall JSONL file for each stage |
 
 ## When you are done
 
