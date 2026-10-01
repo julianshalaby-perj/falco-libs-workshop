@@ -49,7 +49,9 @@ int main() {
             }
             ++received;
         }
-        std::cout << "Received " << received << " events." << std::endl;
+        std::cout << "Read " << received
+                  << " events into user space. Individual events are not printed yet."
+                  << std::endl;
         /* END STEP 2 */
 
         inspector.stop_capture();

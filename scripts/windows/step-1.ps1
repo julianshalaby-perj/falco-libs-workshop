@@ -32,6 +32,7 @@ int main() {
         std::this_thread::sleep_for(std::chrono::seconds(10));
         inspector.stop_capture();
         inspector.close();
+        std::cout << "Attached only. No events read or printed yet." << std::endl;
         std::cout << "Capture stopped." << std::endl;
         return 0;
     } catch(const std::exception& error) {

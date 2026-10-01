@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 $WorkshopRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $SourceDir = Join-Path $WorkshopRoot 'src'
 if (-not (Test-Path (Join-Path $SourceDir 'main.cpp')) -or -not (Test-Path (Join-Path $SourceDir 'CMakeLists.txt'))) {
-    Write-Host 'No agent yet. Run scripts/windows/step-1.ps1 first.'
+    Write-Host 'No agent yet. Nothing to collect. Run scripts/windows/step-1.ps1 first.'
     exit 0
 }
 $MultipassBin = Join-Path $env:ProgramFiles 'Multipass\bin'
@@ -31,14 +31,20 @@ entry='add_subdirectory("${WORKSHOP_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/workshop")
 if ! grep -Fqx "$entry" "$examples"; then
     printf '\n%s\n' "$entry" >> "$examples"
 fi
+# Keep successful build output out of the workshop terminal.
+(
 cmake -S "$libs_dir" -B "$root_dir/build" \
     -DCMAKE_BUILD_TYPE=Release \
     -DUSE_BUNDLED_DEPS=ON \
     -DBUILD_LIBSCAP_MODERN_BPF=ON \
     -DCREATE_TEST_TARGETS=OFF \
     -DBUILD_LIBSINSP_EXAMPLES=ON \
-    -DWORKSHOP_SOURCE_DIR="$root_dir/src"
+    -DWORKSHOP_SOURCE_DIR="$root_dir/src" &&
 cmake --build "$root_dir/build" --target workshop-agent -j 1
+) > "$root_dir/build/workshop-build.log" 2>&1 || {
+    cat "$root_dir/build/workshop-build.log" >&2
+    exit 1
+}
 # End of build.
 '@
 $UbuntuBuild.Replace("`r", '') | & multipass exec falco-lab -- bash -s
@@ -47,7 +53,33 @@ if ($LASTEXITCODE -ne 0) { throw "Build failed inside Ubuntu (exit $LASTEXITCODE
 $LogDir = Join-Path $WorkshopRoot 'logs'
 New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
 $LogFile = Join-Path $LogDir 'latest.log'
-Write-Host 'Running the agent for ten seconds...'
-& multipass exec falco-lab -- bash -c 'exec sudo /home/ubuntu/falco-libs-workshop/build/bin/workshop-agent 2>&1' | Tee-Object -FilePath $LogFile
+Write-Host 'Running for ten seconds. Example activity is generated automatically...'
+$UbuntuCapture = @'
+set -euo pipefail
+root_dir=/home/ubuntu/falco-libs-workshop
+capture_log="$root_dir/build/workshop-capture.log"
+sudo "$root_dir/build/bin/workshop-agent" > "$capture_log" 2>&1 &
+agent_pid=$!
+# Stop this run's agent if the runner is interrupted.
+trap 'kill "$agent_pid" 2>/dev/null || true' EXIT
+trap 'exit 130' HUP INT TERM
+
+# Generate one example execution after attachment, without another terminal.
+for attempt in {1..200}; do
+    if grep -q 'Attached to the Ubuntu kernel.' "$capture_log"; then
+        /usr/bin/id >/dev/null
+        break
+    fi
+    if ! kill -0 "$agent_pid" 2>/dev/null; then break; fi
+    sleep 0.1
+done
+result=0
+wait "$agent_pid" || result=$?
+trap - EXIT HUP INT TERM
+cat "$capture_log"
+exit "$result"
+# End of capture.
+'@
+$UbuntuCapture.Replace("`r", '') | & multipass exec falco-lab -- bash -s | Tee-Object -FilePath $LogFile
 if ($LASTEXITCODE -ne 0) { throw "Agent failed (exit $LASTEXITCODE). Output: $LogFile" }
 Write-Host "Saved output: $LogFile"

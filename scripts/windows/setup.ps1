@@ -148,11 +148,11 @@ cmake -S "$libs_dir" -B "$root_dir/build" \
 cmake --build "$root_dir/build" --target sinsp --parallel "${BUILD_JOBS:-1}"
 
 
-echo 'Setup complete. Run step 1 from your Mac or Windows scripts folder.'
+echo 'Setup complete.'
 # End of Ubuntu setup.
 '@
 $UbuntuSetup.Replace("`r", '') | & multipass exec falco-lab -- bash -s
 if ($LASTEXITCODE -ne 0) {
     throw "Ubuntu setup failed (exit $LASTEXITCODE)."
 }
-Write-Host 'Enter the workshop VM: multipass shell falco-lab'
+Write-Host 'Stay in PowerShell. Next: powershell -ExecutionPolicy Bypass -File scripts/windows/step-1.ps1'
