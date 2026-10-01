@@ -96,7 +96,7 @@ if ($LASTEXITCODE -ne 0) {
     )
 }
 Invoke-LabMultipass -CommandArgs @(
-    'transfer', '--recursive', (Join-Path $WorkshopRoot 'snippets'),
+    'transfer', '--recursive', (Join-Path $WorkshopRoot 'steps'),
     (Join-Path $WorkshopRoot 'FALCO_LIBS_REF'), 'falco-lab:/home/ubuntu/falco-libs-workshop/'
 )
 # Run the Ubuntu setup below directly inside the VM.
