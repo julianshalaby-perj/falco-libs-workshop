@@ -7,8 +7,28 @@ Follow along or watch the presenter. All capture runs inside an Ubuntu VM.
 
 ## Optional local setup
 
-Clone this repo, then run `bash scripts/setup-mac.sh` on Mac or
-`powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1` on Windows.
+### Mac
+
+Open Terminal:
+
+```sh
+git clone https://github.com/julianshalaby-perj/falco-libs-workshop.git
+cd falco-libs-workshop
+bash scripts/mac/setup.sh
+```
+
+### Windows
+
+Open PowerShell:
+
+```powershell
+git clone https://github.com/julianshalaby-perj/falco-libs-workshop.git
+cd falco-libs-workshop
+powershell -ExecutionPolicy Bypass -File scripts/windows/setup.ps1
+```
+
+### After setup (both)
+
 Setup offers to install Multipass, creates the VM, installs dependencies, and
 builds the starter. Approve the installer prompts. If Windows requests a restart,
 reboot and rerun setup. Rerunning setup preserves existing source edits in the VM.
@@ -57,7 +77,8 @@ After any step, `cat src/main.cpp` shows the resulting collector.
 | `presentation/` | Slides and presenter notes |
 | `src/` | The starter and CMake configuration |
 | `steps/` | Three standalone scripts containing the complete code for each step |
-| `scripts/` | Standalone Mac and Windows setup |
+| `scripts/mac/` | Mac setup |
+| `scripts/windows/` | Windows setup |
 
 Stop the VM afterward with `multipass stop falco-lab` from your host terminal.
 
