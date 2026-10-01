@@ -6,10 +6,10 @@ libscap and libsinsp. Mac and Windows attendees run it inside an Ubuntu VM.
 **[Download the workshop slides](https://github.com/julianshalaby-perj/falco-libs-workshop/raw/refs/heads/main/presentation/falco-libs-intro.pptx)**
 
 The slides are the complete attendee guide: fresh-computer setup, four exercises,
-solutions, troubleshooting, and cleanup. Complete slides 2–9 before the workshop.
-The live session starts at slide 10 and takes roughly 45–60 minutes.
+solutions, troubleshooting, and cleanup. Setup is on slide 2.
+The live session starts at slide 3 and takes roughly 45–60 minutes.
 
-The code download link is inside the slides. No GitHub account is needed.
+Setup clones the code directly into the VM. No GitHub account is needed.
 
 | Folder | Contents |
 | --- | --- |
