@@ -1,8 +1,25 @@
 $ErrorActionPreference = 'Stop'
 $WorkshopRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $SourceDir = Join-Path $WorkshopRoot 'src'
+$LogDir = Join-Path $WorkshopRoot 'logs'
+New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
+$RunId = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + "-$PID"
+$LogFile = Join-Path $LogDir "$RunId.log"
+$JsonlFile = Join-Path $LogDir "$RunId.jsonl"
+[IO.File]::WriteAllText($LogFile, '')
+[IO.File]::WriteAllText($JsonlFile, '')
+
+function Write-Status {
+    param([string]$Message)
+    Write-Host $Message
+    Add-Content -LiteralPath $LogFile -Value $Message -Encoding UTF8
+}
+try {
+Write-Status "Run: $RunId"
 if (-not (Test-Path (Join-Path $SourceDir 'main.cpp')) -or -not (Test-Path (Join-Path $SourceDir 'CMakeLists.txt'))) {
-    Write-Host 'No agent yet. Nothing to collect. Run scripts/windows/step-1.ps1 first.'
+    Write-Status 'No agent yet. Nothing to collect. Run scripts/windows/step-1.ps1 first.'
+    Write-Status "Status log: $LogFile"
+    Write-Status "Syscalls: $JsonlFile"
     exit 0
 }
 $MultipassBin = Join-Path $env:ProgramFiles 'Multipass\bin'
@@ -16,7 +33,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not start falco-lab. Run setup first.' }
 if ($LASTEXITCODE -ne 0) { throw 'Could not create the source folder in Ubuntu.' }
 & multipass transfer (Join-Path $SourceDir 'main.cpp') (Join-Path $SourceDir 'CMakeLists.txt') falco-lab:/home/ubuntu/falco-libs-workshop/src/
 if ($LASTEXITCODE -ne 0) { throw 'Could not copy the source into Ubuntu.' }
-Write-Host 'Rebuilding the agent in Ubuntu...'
+Write-Status 'Rebuilding the agent in Ubuntu...'
 $UbuntuBuild = @'
 set -euo pipefail
 root_dir=/home/ubuntu/falco-libs-workshop
@@ -50,15 +67,13 @@ cmake --build "$root_dir/build" --target workshop-agent -j 1
 $UbuntuBuild.Replace("`r", '') | & multipass exec falco-lab -- bash -s
 if ($LASTEXITCODE -ne 0) { throw "Build failed inside Ubuntu (exit $LASTEXITCODE)." }
 
-$LogDir = Join-Path $WorkshopRoot 'logs'
-New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
-$LogFile = Join-Path $LogDir 'latest.log'
-Write-Host 'Running for ten seconds. Example activity is generated automatically...'
+Write-Status 'Build complete.'
+Write-Status 'Running for ten seconds. Example activity is generated automatically...'
 $UbuntuCapture = @'
 set -euo pipefail
 root_dir=/home/ubuntu/falco-libs-workshop
 capture_log="$root_dir/build/workshop-capture.log"
-sudo "$root_dir/build/bin/workshop-agent" > "$capture_log" 2>&1 &
+sudo "$root_dir/build/bin/workshop-agent" > "$root_dir/build/workshop-syscalls.jsonl" 2> "$capture_log" &
 agent_pid=$!
 # Stop this run's agent if the runner is interrupted.
 trap 'kill "$agent_pid" 2>/dev/null || true' EXIT
@@ -82,8 +97,16 @@ exit "$result"
 $UbuntuCapture.Replace("`r", '') | & multipass exec falco-lab -- bash -s
 $CaptureResult = $LASTEXITCODE
 # Transfer the completed file instead of piping bulk output through exec.
-& multipass transfer falco-lab:/home/ubuntu/falco-libs-workshop/build/workshop-capture.log $LogFile
+& multipass transfer falco-lab:/home/ubuntu/falco-libs-workshop/build/workshop-capture.log "$LogFile.capture"
 if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve the capture log from Ubuntu.' }
-Get-Content -LiteralPath $LogFile
+Get-Content -LiteralPath "$LogFile.capture" | ForEach-Object { Write-Status $_ }
+Remove-Item -LiteralPath "$LogFile.capture"
+& multipass transfer falco-lab:/home/ubuntu/falco-libs-workshop/build/workshop-syscalls.jsonl $JsonlFile
+if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve the syscall JSONL from Ubuntu.' }
 if ($CaptureResult -ne 0) { throw "Agent failed (exit $CaptureResult). Output: $LogFile" }
-Write-Host "Saved output: $LogFile"
+Write-Status "Status log: $LogFile"
+Write-Status "Syscalls: $JsonlFile"
+} catch {
+    Write-Status "Run failed: $_"
+    exit 1
+}
