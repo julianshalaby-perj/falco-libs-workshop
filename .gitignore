@@ -1,0 +1,6 @@
+.deps/
+build/
+.artifacts/
+.idea/
+*.jsonl
+.DS_Store
