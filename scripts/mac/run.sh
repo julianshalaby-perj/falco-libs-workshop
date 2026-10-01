@@ -2,12 +2,27 @@
 set -euo pipefail
 
 root_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+mkdir -p "$root_dir/logs"
+run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+run_log="$root_dir/logs/$run_id.log"
+jsonl_file="$root_dir/logs/$run_id.jsonl"
+: > "$run_log"
+: > "$jsonl_file"
+
+log_status() {
+    printf '%s\n' "$*"
+    printf '%s\n' "$*" >> "$run_log"
+}
+trap 'result=$?; if [[ $result -ne 0 ]]; then log_status "Run failed (exit $result)."; fi' EXIT
+log_status "Run: $run_id"
 if [[ $(uname -s) != Darwin ]]; then
     echo 'Run this script from your Mac terminal. Windows scripts are in scripts/windows/.' >&2
     exit 1
 fi
 if [[ ! -f "$root_dir/src/main.cpp" || ! -f "$root_dir/src/CMakeLists.txt" ]]; then
-    echo 'No agent yet. Nothing to collect. Run bash scripts/mac/step-1.sh first.'
+    log_status 'No agent yet. Nothing to collect. Run bash scripts/mac/step-1.sh first.'
+    log_status "Status log: $run_log"
+    log_status "Syscalls: $jsonl_file"
     exit 0
 fi
 export PATH="/usr/local/bin:$PATH"
@@ -18,7 +33,7 @@ fi
 multipass start falco-lab
 multipass exec falco-lab -- mkdir -p /home/ubuntu/falco-libs-workshop/src
 multipass transfer "$root_dir/src/main.cpp" "$root_dir/src/CMakeLists.txt" falco-lab:/home/ubuntu/falco-libs-workshop/src/
-echo 'Rebuilding the agent in Ubuntu...'
+log_status 'Rebuilding the agent in Ubuntu...'
 multipass exec falco-lab -- bash -s <<'UBUNTU_BUILD'
 set -euo pipefail
 root_dir=/home/ubuntu/falco-libs-workshop
@@ -50,14 +65,14 @@ cmake --build "$root_dir/build" --target workshop-agent -j 1
 # End of build.
 UBUNTU_BUILD
 
-mkdir -p "$root_dir/logs"
-echo 'Running for ten seconds. Example activity is generated automatically...'
+log_status 'Build complete.'
+log_status 'Running for ten seconds. Example activity is generated automatically...'
 capture_result=0
 multipass exec falco-lab -- bash -s <<'UBUNTU_CAPTURE' || capture_result=$?
 set -euo pipefail
 root_dir=/home/ubuntu/falco-libs-workshop
 capture_log="$root_dir/build/workshop-capture.log"
-sudo "$root_dir/build/bin/workshop-agent" > "$capture_log" 2>&1 &
+sudo "$root_dir/build/bin/workshop-agent" > "$root_dir/build/workshop-syscalls.jsonl" 2> "$capture_log" &
 agent_pid=$!
 # Stop this run's agent if the runner is interrupted.
 trap 'kill "$agent_pid" 2>/dev/null || true' EXIT
@@ -79,7 +94,10 @@ exit "$result"
 # End of capture.
 UBUNTU_CAPTURE
 # Transfer the completed file instead of piping bulk output through exec.
-multipass transfer falco-lab:/home/ubuntu/falco-libs-workshop/build/workshop-capture.log "$root_dir/logs/latest.log"
-cat "$root_dir/logs/latest.log"
-echo "Saved output: $root_dir/logs/latest.log"
+multipass transfer falco-lab:/home/ubuntu/falco-libs-workshop/build/workshop-capture.log "$run_log.capture"
+while IFS= read -r line || [[ -n "$line" ]]; do log_status "$line"; done < "$run_log.capture"
+rm -- "$run_log.capture"
+multipass transfer falco-lab:/home/ubuntu/falco-libs-workshop/build/workshop-syscalls.jsonl "$jsonl_file"
+log_status "Status log: $run_log"
+log_status "Syscalls: $jsonl_file"
 exit "$capture_result"

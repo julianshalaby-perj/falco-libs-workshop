@@ -20,6 +20,7 @@ cat > "$root_dir/src/main.cpp" <<'COLLECTOR_CPP'
 #include <iostream>
 #include <stdexcept>
 
+#include <json/json.h>
 #include <libscap/scap.h>
 #include <libsinsp/sinsp.h>
 #include <libsinsp/threadinfo.h>
@@ -32,9 +33,11 @@ int main() {
         // Scheduler switches are not syscalls; do not collect that tracepoint.
         inspector.mark_ppm_sc_of_interest(PPM_SC_SCHED_SWITCH, false);
         inspector.start_capture();
-        std::cout << "Attached to the Ubuntu kernel." << std::endl;
+        std::cerr << "Attached to the Ubuntu kernel." << std::endl;
 
         /* STEP 2 ADDED: read and print events for ten seconds. */
+        Json::StreamWriterBuilder json;
+        json["indentation"] = ""; // One JSON object per line.
         std::uint64_t received = 0;
         const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(10);
         while(std::chrono::steady_clock::now() < until) {
@@ -50,16 +53,19 @@ int main() {
                 throw std::runtime_error(inspector.getlasterr());
             }
             ++received;
-            std::cout << event->get_name() << '\n';
+            Json::Value record;
+            record["event"] = event->get_name();
+            record["timestamp_ns"] = Json::UInt64(event->get_ts());
+            std::cout << Json::writeString(json, record) << '\n';
         }
-        std::cout << "Read " << received
+        std::cerr << "Read " << received
                   << " events into user space."
                   << std::endl;
         /* END STEP 2 */
 
         inspector.stop_capture();
         inspector.close();
-        std::cout << "Capture stopped." << std::endl;
+        std::cerr << "Capture stopped." << std::endl;
         return 0;
     } catch(const std::exception& error) {
         std::cerr << error.what() << std::endl;

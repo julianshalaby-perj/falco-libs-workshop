@@ -30,12 +30,12 @@ int main() {
         // Scheduler switches are not syscalls; do not collect that tracepoint.
         inspector.mark_ppm_sc_of_interest(PPM_SC_SCHED_SWITCH, false);
         inspector.start_capture();
-        std::cout << "Attached to the Ubuntu kernel." << std::endl;
+        std::cerr << "Attached to the Ubuntu kernel." << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(10));
         inspector.stop_capture();
         inspector.close();
-        std::cout << "Attached only. No events read or printed yet." << std::endl;
-        std::cout << "Capture stopped." << std::endl;
+        std::cerr << "Attached only. No events read or printed yet." << std::endl;
+        std::cerr << "Capture stopped." << std::endl;
         return 0;
     } catch(const std::exception& error) {
         std::cerr << error.what() << std::endl;
