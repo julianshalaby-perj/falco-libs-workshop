@@ -76,16 +76,16 @@ Running `run` before step 1 explains that there is no agent and nothing to colle
 | --- | --- |
 | Before step 1 | No agent yet; nothing to collect |
 | Step 1 | Attached only; no events read or printed |
-| Step 2 | Number of events read into user space; individual events are not printed yet |
-| Step 3 | Number of process-execution events after filtering |
+| Step 2 | Event names from the unfiltered stream, followed by a count |
+| Step 3 | Only process-execution event names, followed by a count |
 | Step 4 | Execution lines with PID and process name, including the automatic `id` command |
 
 Wait for a run to finish, then apply the next step and run again. Every step
 includes the earlier code, so you can repeat a step or skip ahead.
 
-Step 2 really does read events into user space; it just counts them instead of
-printing each one. Step 3 narrows those events to process executions. Step 4 adds
-the details. Counts and PIDs vary with activity in the VM.
+Step 2 reads events into user space and prints each event name. Expect noisy
+output. Step 3 filters that output to process executions. Step 4 adds PID and
+process name. Counts and PIDs vary with activity in the VM.
 
 | Folder | Contents |
 | --- | --- |
