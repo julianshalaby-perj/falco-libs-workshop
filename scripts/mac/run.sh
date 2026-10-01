@@ -52,7 +52,8 @@ UBUNTU_BUILD
 
 mkdir -p "$root_dir/logs"
 echo 'Running for ten seconds. Example activity is generated automatically...'
-multipass exec falco-lab -- bash -s <<'UBUNTU_CAPTURE' | tee "$root_dir/logs/latest.log"
+capture_result=0
+multipass exec falco-lab -- bash -s <<'UBUNTU_CAPTURE' || capture_result=$?
 set -euo pipefail
 root_dir=/home/ubuntu/falco-libs-workshop
 capture_log="$root_dir/build/workshop-capture.log"
@@ -74,8 +75,11 @@ done
 result=0
 wait "$agent_pid" || result=$?
 trap - EXIT HUP INT TERM
-cat "$capture_log"
 exit "$result"
 # End of capture.
 UBUNTU_CAPTURE
+# Transfer the completed file instead of piping bulk output through exec.
+multipass transfer falco-lab:/home/ubuntu/falco-libs-workshop/build/workshop-capture.log "$root_dir/logs/latest.log"
+cat "$root_dir/logs/latest.log"
 echo "Saved output: $root_dir/logs/latest.log"
+exit "$capture_result"
