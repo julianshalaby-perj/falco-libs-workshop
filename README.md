@@ -105,7 +105,8 @@ Mac step scripts have been checked against a Mac-hosted Ubuntu 24.04 arm64 VM.
 Both platforms embed the same Ubuntu code. Windows scripts still need a native
 Windows rehearsal.
 
-`FALCO_LIBS_REF` pins the library revision. Setup downloads dependencies into
-`.deps/`; they retain their upstream licenses. No node-agent code is vendored.
+First setup downloads the latest code from Falco’s default branch into `.deps/`.
+Rerunning setup reuses that checkout. Dependencies retain their upstream licenses.
+No node-agent code is vendored.
 
-[Upstream Falco libs](https://github.com/falcosecurity/libs/tree/e72873882967cdd86b8753eca09ea3e9f91ccd4a)
+[Upstream Falco libs](https://github.com/falcosecurity/libs)
