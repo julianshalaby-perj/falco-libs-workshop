@@ -2,10 +2,17 @@
 set -euo pipefail
 
 root_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+stage=0
+if [[ -f "$root_dir/src/main.cpp" ]]; then
+    stage=$(sed -n '1s|^// Step \([123]\):.*|\1|p' "$root_dir/src/main.cpp")
+    if [[ -z "$stage" ]]; then
+        echo 'Cannot identify the stage. Keep the first // Step N: comment in src/main.cpp.' >&2
+        exit 1
+    fi
+fi
 mkdir -p "$root_dir/logs"
-run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
-run_log="$root_dir/logs/$run_id.log"
-jsonl_file="$root_dir/logs/$run_id.jsonl"
+run_log="$root_dir/logs/stage-$stage.log"
+jsonl_file="$root_dir/logs/stage-$stage.jsonl"
 : > "$run_log"
 : > "$jsonl_file"
 
@@ -14,7 +21,7 @@ log_status() {
     printf '%s\n' "$*" >> "$run_log"
 }
 trap 'result=$?; if [[ $result -ne 0 ]]; then log_status "Run failed (exit $result)."; fi' EXIT
-log_status "Run: $run_id"
+log_status "Stage: $stage"
 if [[ $(uname -s) != Darwin ]]; then
     echo 'Run this script from your Mac terminal. Windows scripts are in scripts/windows/.' >&2
     exit 1
