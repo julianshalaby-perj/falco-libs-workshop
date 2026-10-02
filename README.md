@@ -1,200 +1,53 @@
 # Falco libs workshop · BSides Atlanta
 
-Build a barebones C++ syscall collector with libscap and libsinsp.
-Follow along or watch the presenter. Use one terminal on your Mac or Windows
-laptop for the entire workshop. The scripts handle Ubuntu automatically.
-
-## Mac
-
-Open Terminal, clone the repo, and prepare the VM:
+Build a minimal C++ syscall collector with libscap and libsinsp. Follow along
+from one terminal on your laptop. Capture runs inside an Ubuntu VM.
 
 ```sh
 git clone https://github.com/julianshalaby-perj/falco-libs-workshop.git
 cd falco-libs-workshop
-bash scripts/mac/setup.sh
 ```
 
-Run a step, then rebuild and capture with `run`:
+Run scripts from the repo root. Replace `<name>` with a script base name below:
 
-```sh
-bash scripts/mac/step-1.sh
-bash scripts/mac/run.sh
-bash scripts/mac/step-2.sh
-bash scripts/mac/run.sh
-bash scripts/mac/step-3.sh
-bash scripts/mac/run.sh
-```
-
-## Windows
-
-Open PowerShell, clone the repo, and prepare the VM:
-
-```powershell
-git clone https://github.com/julianshalaby-perj/falco-libs-workshop.git
-cd falco-libs-workshop
-powershell -ExecutionPolicy Bypass -File scripts/windows/setup.ps1
-```
-
-Run a step, then rebuild and capture with `run`:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/windows/step-1.ps1
-powershell -ExecutionPolicy Bypass -File scripts/windows/run.ps1
-powershell -ExecutionPolicy Bypass -File scripts/windows/step-2.ps1
-powershell -ExecutionPolicy Bypass -File scripts/windows/run.ps1
-powershell -ExecutionPolicy Bypass -File scripts/windows/step-3.ps1
-powershell -ExecutionPolicy Bypass -File scripts/windows/run.ps1
-```
-
-Setup offers to install Multipass, creates Ubuntu, and installs the C++ build tools.
-The first build downloads the prebuilt Falco libraries through `src/CMakeLists.txt`.
-Attendees compile only the collector. Approve installer prompts. If Windows requests a
-restart, reboot and rerun setup.
-
-The bundles support Apple Silicon and Intel Macs, and Intel/AMD Windows PCs.
-Multipass on Windows needs Hyper-V, or VirtualBox on Windows Home. The current
-Windows Multipass installer does not support ARM PCs. Virtualization must be
-enabled, and installation may need administrator access.
-
-## Workshop flow
-
-The repo starts without generated source files. **Step 1 creates `src/main.cpp`
-and `src/CMakeLists.txt`.** Every step writes its complete `main.cpp` and copies
-the same CMake template from `scripts/CMakeLists.txt`, so you can repeat a step
-or skip ahead. That one template owns the library release URL, architecture
-selection, checksums, download, and linking. Comments mark the code additions.
-Rerunning a step replaces both generated files.
-
-**`run` rebuilds, generates example activity inside Ubuntu, and runs the agent
-for ten seconds.** Each stage saves a matching pair of files in `logs/`:
-
-| File | Contents |
+| Platform | Command |
 | --- | --- |
-| `stage-1.log`, `stage-2.log`, `stage-3.log` | Runner progress and failures |
-| `stage-1.jsonl`, `stage-2.jsonl`, `stage-3.jsonl` | One JSON object per captured event |
+| Mac | `bash scripts/mac/<name>.sh` |
+| Windows (PowerShell) | `powershell -ExecutionPolicy Bypass -File scripts/windows/<name>.ps1` |
 
-Rerunning a stage replaces that stage's files. Other stages' files stay.
-Before step 1, the filenames are `stage-0.log` and `stage-0.jsonl`.
-The runner reads the stage from the first comment in `src/main.cpp`.
-The terminal shows high-level progress and the two file paths. The runner
-transfers completed files from Ubuntu, so bulk syscall output does not pass
-through the terminal. You do not need to enter the VM. Successful builds stay
-quiet. If a build fails, the agent does not run.
+Run this sequence, waiting for each command to finish:
 
-Stage 1 writes one summary line to its log: the capture engine’s event count,
-dropped events, and zero events read. It does not consume buffered events.
-Stages 2 and 3 write events directly to JSONL without collector status messages.
-There are no try/catch blocks. The runner reports progress and transfers the files.
-The agent stops after capture. The VM stays available for the next step.
-Running `run` before step 1 explains that there is no agent and nothing to collect.
-
-| Stage | What you see when you run |
-| --- | --- |
-| Before step 1 | No agent yet; nothing to collect |
-| Step 1 | Capture count in the log; zero events read and an empty JSONL file |
-| Step 2 | Raw event metadata, return status, and every captured parameter in JSONL |
-| Step 3 | The same raw fields, plus process, user, file and socket context from libsinsp |
-
-Wait for a run to finish, then apply the next step and run again. Every step
-includes the earlier code, so you can repeat a step or skip ahead.
-
-Step 2 reads events into user space and outputs the data available in each
-captured event. It uses the libraries' native field and parameter names:
-
-| Raw event data | JSON fields |
-| --- | --- |
-| Event metadata | `evt.type`, `evt.rawtime`, `evt.dir`, `evt.cpu`, `thread.tid` |
-| Return status | `evt.rawres`, `evt.res`, `evt.failed` |
-| Every captured parameter | `evt.rawarg.<name>`, such as `evt.rawarg.fd`, `evt.rawarg.name`, `evt.rawarg.flags`, `evt.rawarg.res` |
-
-Parameter names vary by event. The collector loops over the event's parameters
-instead of maintaining a shortlist. Values under `evt.rawarg.*` use libsinsp's
-unresolved text representation, so they are JSON strings. This includes captured
-socket tuples and data buffers, subject to the probe's capture limits and the
-library's text rendering. It is a readable view, not a lossless binary dump.
-`evt.rawtime` is the Unix timestamp in nanoseconds. `evt.rawres` is the numeric
-return value; `evt.res` and `evt.failed` describe that value without needing
-process or descriptor history.
-
-Step 3 keeps all those fields and adds context resolved from libsinsp's state:
-
-| Enrichment | Additional JSON fields |
-| --- | --- |
-| Process | `proc.pid`, `proc.name`, `proc.exepath`, `proc.cmdline`, `proc.cwd` |
-| Parent | `proc.ppid`, `proc.pname` |
-| User | `user.uid`, `user.name` |
-| File or socket | `fd.num`, `fd.name`, `fd.type` |
-| Network | `fd.lip`, `fd.lport`, `fd.rip`, `fd.rport` |
-
-For example, a read event contains a descriptor number. Stage 3 adds the file
-path associated with that descriptor. A syscall carries a thread ID; Stage 3
-adds its process and command line. Some events also carry process or socket
-information as raw parameters; the enrichment fields provide context across
-events using libsinsp's tracked state and system information.
-
-Both stages use libsinsp to read and parse events. Stage 3 adds only field names
-to the output list, not a separate processing pass. The library extracts the
-named fields with their native JSON types; unavailable values are `null`.
-JsonCpp escapes the output and writes one record per line. Counts and available
-values vary with activity in the VM.
-
-| Folder | Contents |
-| --- | --- |
-| `scripts/mac/` | Mac setup, steps 1–3, run, and teardown |
-| `scripts/windows/` | Windows setup, steps 1–3, run, and teardown |
-| `scripts/CMakeLists.txt` | One CMake template shared by every stage |
-| `src/` | Generated `main.cpp` and `CMakeLists.txt`; initially empty |
-| `logs/` | A status log and syscall JSONL file for each stage |
-
-## When you are done
-
-Run teardown from the same host terminal:
-
-```sh
-# Mac
-bash scripts/mac/teardown.sh
+```text
+setup
+step-1
+run
+step-2
+run
+step-3
+run
+teardown
 ```
 
-```powershell
-# Windows
-powershell -ExecutionPolicy Bypass -File scripts/windows/teardown.ps1
-```
+`setup` offers to install Multipass, creates the `falco-lab` Ubuntu VM, and
+installs build tools. The first `run` downloads prebuilt Falco libraries.
 
-Confirm with `y` to permanently delete the `falco-lab` VM and its disk, including
-the dependencies and builds inside it. This ends anything running inside that VM.
-Your local source and logs remain. Other VMs and the Multipass installation stay.
-To repeat the workshop, run setup again to recreate the VM and dependencies.
+Each step creates `src/main.cpp` and `src/CMakeLists.txt`, replacing the previous
+stage. `run` rebuilds the collector and captures for ten seconds.
 
-## About the collector
+| Stage | Result |
+| --- | --- |
+| `step-1` | Capture without reading. Log the capture count; JSONL stays empty. |
+| `step-2` | Read events and write raw event fields and parameters. |
+| `step-3` | Add process, user, file, and socket context from libsinsp. |
 
-The collector monitors the Ubuntu VM's kernel, not your Mac or Windows host.
-It uses libsinsp over libscap's modern eBPF engine. The scheduler-switch
-tracepoint is disabled because those events are not syscalls. Syscall capture
-otherwise uses the default set.
-There is no application filter or Falco rule engine. Every event returned
-successfully by the library is written to JSONL, including both syscall directions when
-available. This is the library's event stream, not a guarantee of every syscall
-on the machine.
-This is a teaching example, not a production agent.
+Results go to `logs/stage-N.log` and `logs/stage-N.jsonl`. Rerunning a stage
+replaces its logs. The collector stops after each run; the VM stays available.
 
-On the first build, CMake downloads the architecture-matched Ubuntu 24.04 bundle
-and verifies its SHA-256 checksum. It caches the extracted libraries under
-`build/collector/_deps/falco_libs-src/` inside the VM. Later builds reuse them.
-All package settings are defined once in `scripts/CMakeLists.txt` and copied to
-`src/CMakeLists.txt` by the steps. Setup has no library download or release
-configuration. Both architectures use the same Falco source revision,
-recorded in the bundle's `manifest.json`. Upstream licenses ship in the bundle.
-No node-agent code is vendored.
+`teardown` asks for confirmation, then deletes the workshop VM and its disk.
+Local source and logs remain.
 
-Both bundles passed native Ubuntu 24.04 builds and live capture for all three
-stages after relocation. The ARM64 bundle also passed all stages in a fresh
-2 GB Multipass VM on Mac. Downloading and unpacking the released bundle took
-about two seconds on the test connection, after Ubuntu and the compiler were
-already installed. First-time VM and compiler installation still take extra time.
-New workshop VMs use two CPUs, 2 GB RAM, and a 12 GB disk.
-
-Earlier versions passed script parsing and source-generation checks on Windows
-Server 2022 with Windows PowerShell 5.1 and PowerShell 7. The full Multipass
-installation, VM launch, build, and capture flow still needs a Windows rehearsal.
+Supports Intel and Apple Silicon Macs, and Intel/AMD Windows PCs. Windows
+needs Hyper-V or VirtualBox; ARM Windows is unsupported. If setup requests a
+restart, reboot and rerun it.
 
 [Upstream Falco libs](https://github.com/falcosecurity/libs)
