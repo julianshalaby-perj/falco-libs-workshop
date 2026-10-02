@@ -6,7 +6,10 @@ source /etc/os-release
 [[ $ID == ubuntu && $VERSION_ID == 24.04 ]] || { echo 'Use Ubuntu 24.04.' >&2; exit 1; }
 case $(uname -m) in x86_64|aarch64) ;; *) exit 1 ;; esac
 sudo apt-get update
-sudo apt-get install -y --no-install-recommends build-essential ca-certificates clang cmake git pkg-config libelf-dev zlib1g-dev python3
+sudo apt-get install -y --no-install-recommends build-essential ca-certificates clang cmake git pkg-config libelf-dev zlib1g-dev python3 linux-tools-generic
+# Ubuntu's /usr/sbin/bpftool wrapper may not match the CI runner's Azure kernel.
+bpftool_exe=$(find /usr/lib/linux-tools -type f -name bpftool | sort -V | tail -n 1)
+[[ -n "$bpftool_exe" ]] || { echo 'bpftool is missing.' >&2; exit 1; }
 work_dir="$root_dir/.artifacts/bundle-build"
 mkdir -p "$work_dir"
 libs_dir="$work_dir/libs"
@@ -33,7 +36,7 @@ if ! grep -Fqx "$entry" "$examples"; then printf '\n%s\n' "$entry" >> "$examples
 cmake -S "$libs_dir" -B "$work_dir/build" \
     -DCMAKE_BUILD_TYPE=Release -DUSE_BUNDLED_DEPS=ON \
     -DBUILD_LIBSCAP_MODERN_BPF=ON -DCREATE_TEST_TARGETS=OFF \
-    -DBUILD_LIBSINSP_EXAMPLES=ON
+    -DBUILD_LIBSINSP_EXAMPLES=ON -DMODERN_BPFTOOL_EXE="$bpftool_exe"
 cmake --build "$work_dir/build" --target workshop-agent --parallel 2
 python3 "$root_dir/maintainer/package-bundle.py" "$work_dir"
 # Prove the bundle works after the original source/build trees are removed from view.
