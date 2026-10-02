@@ -3,30 +3,51 @@
 Build a minimal C++ syscall collector with libscap and libsinsp. Follow along
 from one terminal on your laptop. Capture runs inside an Ubuntu VM.
 
+## Mac
+
+Open Terminal and run each command in order:
+
 ```sh
 git clone https://github.com/julianshalaby-perj/falco-libs-workshop.git
 cd falco-libs-workshop
+bash scripts/mac/setup.sh
+bash scripts/mac/step-1.sh
+bash scripts/mac/run.sh
+bash scripts/mac/step-2.sh
+bash scripts/mac/run.sh
+bash scripts/mac/step-3.sh
+bash scripts/mac/run.sh
 ```
 
-Run scripts from the repo root. Replace `<name>` with a script base name below:
+When finished:
 
-| Platform | Command |
-| --- | --- |
-| Mac | `bash scripts/mac/<name>.sh` |
-| Windows (PowerShell) | `powershell -ExecutionPolicy Bypass -File scripts/windows/<name>.ps1` |
-
-Run this sequence, waiting for each command to finish:
-
-```text
-setup
-step-1
-run
-step-2
-run
-step-3
-run
-teardown
+```sh
+bash scripts/mac/teardown.sh
 ```
+
+## Windows
+
+Open PowerShell and run each command in order:
+
+```powershell
+git clone https://github.com/julianshalaby-perj/falco-libs-workshop.git
+cd falco-libs-workshop
+powershell -ExecutionPolicy Bypass -File scripts/windows/setup.ps1
+powershell -ExecutionPolicy Bypass -File scripts/windows/step-1.ps1
+powershell -ExecutionPolicy Bypass -File scripts/windows/run.ps1
+powershell -ExecutionPolicy Bypass -File scripts/windows/step-2.ps1
+powershell -ExecutionPolicy Bypass -File scripts/windows/run.ps1
+powershell -ExecutionPolicy Bypass -File scripts/windows/step-3.ps1
+powershell -ExecutionPolicy Bypass -File scripts/windows/run.ps1
+```
+
+When finished:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/windows/teardown.ps1
+```
+
+## Workshop flow
 
 `setup` offers to install Multipass, creates the `falco-lab` Ubuntu VM, and
 installs build tools. The first `run` downloads prebuilt Falco libraries.
