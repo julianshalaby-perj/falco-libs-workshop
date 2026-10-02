@@ -4,8 +4,6 @@ Build a barebones C++ syscall collector with libscap and libsinsp.
 Follow along or watch the presenter. Use one terminal on your Mac or Windows
 laptop for the entire workshop. The scripts handle Ubuntu automatically.
 
-**[Download the workshop slides](https://github.com/julianshalaby-perj/falco-libs-workshop/raw/refs/heads/main/presentation/falco-libs-intro.pptx)**
-
 ## Mac
 
 Open Terminal, clone the repo, and prepare the VM and libraries:
@@ -94,7 +92,6 @@ process context still appear, without the enrichment fields. Counts and PIDs var
 
 | Folder | Contents |
 | --- | --- |
-| `presentation/` | Slides and presenter notes |
 | `scripts/mac/` | Mac setup, steps 1–3, run, and teardown |
 | `scripts/windows/` | Windows setup, steps 1–3, run, and teardown |
 | `src/` | Created by step 1, then updated by later steps |

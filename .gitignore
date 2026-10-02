@@ -8,3 +8,5 @@ build/
 # Created by the numbered workshop scripts.
 /src/
 /logs/
+artifacts/
+presentation/
