@@ -69,8 +69,8 @@ for stage in (1, 2, 3):
     records = [json.loads(line) for line in (root / f'stage-{stage}.jsonl').read_text().splitlines()]
     assert 'Capture stopped.' in (root / f'stage-{stage}.log').read_text()
     assert bool(records) == (stage != 1), (stage, len(records))
-    assert all('event' in r and 'timestamp_ns' in r for r in records)
+    assert all('evt.type' in r and 'evt.rawtime' in r for r in records)
     if stage == 3:
-        assert any('pid' in r and 'name' in r for r in records)
+        assert any(r.get('proc.pid') is not None and r.get('proc.name') is not None for r in records)
     print(f'Stage {stage}: {len(records)} valid events, capture stopped.')
 PY

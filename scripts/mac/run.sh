@@ -44,27 +44,17 @@ log_status 'Rebuilding the agent in Ubuntu...'
 multipass exec falco-lab -- bash -s <<'UBUNTU_BUILD'
 set -euo pipefail
 root_dir=/home/ubuntu/falco-libs-workshop
-libs_dir="$root_dir/.deps/falcosecurity-libs"
-if [[ ! -f "$root_dir/build/CMakeCache.txt" ]]; then
+sdk_dir="$root_dir/.deps/falco-libs"
+if [[ ! -f "$sdk_dir/FalcoWorkshopConfig.cmake" ]]; then
     echo 'Run setup from your Mac or Windows folder first.' >&2
     exit 1
 fi
-# Build the workshop source as a Falco libs example.
-examples="$libs_dir/userspace/libsinsp/examples/CMakeLists.txt"
-entry='add_subdirectory("${WORKSHOP_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/workshop")'
-if ! grep -Fqx "$entry" "$examples"; then
-    printf '\n%s\n' "$entry" >> "$examples"
-fi
-# Keep successful build output out of the workshop terminal.
+mkdir -p "$root_dir/build"
+# Only main.cpp is compiled. The downloaded libraries are linked as-is.
 (
-cmake -S "$libs_dir" -B "$root_dir/build" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DUSE_BUNDLED_DEPS=ON \
-    -DBUILD_LIBSCAP_MODERN_BPF=ON \
-    -DCREATE_TEST_TARGETS=OFF \
-    -DBUILD_LIBSINSP_EXAMPLES=ON \
-    -DWORKSHOP_SOURCE_DIR="$root_dir/src" &&
-cmake --build "$root_dir/build" --target workshop-agent -j 1
+cmake -S "$root_dir/src" -B "$root_dir/build/collector" \
+    -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$sdk_dir" &&
+cmake --build "$root_dir/build/collector" --target workshop-agent --parallel 1
 ) > "$root_dir/build/workshop-build.log" 2>&1 || {
     cat "$root_dir/build/workshop-build.log" >&2
     exit 1

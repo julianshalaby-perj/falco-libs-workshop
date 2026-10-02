@@ -5,12 +5,14 @@ root_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 # Each step writes the complete source, so you can repeat it or skip ahead.
 mkdir -p "$root_dir/src"
 cat > "$root_dir/src/CMakeLists.txt" <<'COLLECTOR_CMAKE'
-# Loaded inside the Falco libs example tree, like node-agent.
+cmake_minimum_required(VERSION 3.16)
+project(workshop-agent LANGUAGES CXX)
+find_package(FalcoWorkshop CONFIG REQUIRED)
 add_executable(workshop-agent main.cpp)
 target_compile_features(workshop-agent PRIVATE cxx_std_17)
 target_link_libraries(workshop-agent sinsp)
 set_target_properties(workshop-agent PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../bin"
 )
 COLLECTOR_CMAKE
 cat > "$root_dir/src/main.cpp" <<'COLLECTOR_CPP'
@@ -34,8 +36,7 @@ int main() {
         std::this_thread::sleep_for(std::chrono::seconds(10));
         inspector.stop_capture();
         inspector.close();
-        std::cerr << "Attached only. No events read or printed yet." << std::endl;
-        std::cerr << "Capture stopped." << std::endl;
+        std::cerr << "Attached only. No events read or printed yet.\nCapture stopped.\n";
         return 0;
     } catch(const std::exception& error) {
         std::cerr << error.what() << std::endl;

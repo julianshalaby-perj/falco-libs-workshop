@@ -46,9 +46,15 @@ powershell -ExecutionPolicy Bypass -File scripts/windows/step-3.ps1
 powershell -ExecutionPolicy Bypass -File scripts/windows/run.ps1
 ```
 
-Setup offers to install Multipass, creates Ubuntu, installs dependencies, and
-builds the Falco libraries. Approve installer prompts. If Windows requests a
+Setup offers to install Multipass, creates Ubuntu, installs the C++ build tools,
+and downloads prebuilt Falco libraries for the VM's CPU architecture.
+Attendees compile only the collector. Approve installer prompts. If Windows requests a
 restart, reboot and rerun setup.
+
+The bundles support Apple Silicon and Intel Macs, and Intel/AMD Windows PCs.
+Multipass on Windows needs Hyper-V, or VirtualBox on Windows Home. The current
+Windows Multipass installer does not support ARM PCs. Virtualization must be
+enabled, and installation may need administrator access.
 
 ## Workshop flow
 
@@ -80,15 +86,33 @@ Running `run` before step 1 explains that there is no agent and nothing to colle
 | --- | --- |
 | Before step 1 | No agent yet; nothing to collect |
 | Step 1 | Attached only; the JSONL file is empty |
-| Step 2 | JSONL records with event name and timestamp; count in the status log |
-| Step 3 | The same JSONL records, enriched with PID and process name when available |
+| Step 2 | JSONL records with `evt.type` and `evt.rawtime`; count in the status log |
+| Step 3 | The same JSONL records, enriched with process, syscall, file and network context |
 
 Wait for a run to finish, then apply the next step and run again. Every step
 includes the earlier code, so you can repeat a step or skip ahead.
 
 Step 2 reads events into user space and writes JSONL records for common
-syscalls such as file opens, reads, writes, and process executions. Step 3 adds PID and process name when available. Events without
-process context still appear, without the enrichment fields. Counts and PIDs vary with activity in the VM.
+syscalls such as file opens, reads, writes, and process executions. Step 3 adds
+these fields using libsinsp’s built-in names and JSON formatter:
+
+| Context | JSON fields |
+| --- | --- |
+| Process | `proc.pid`, `proc.name`, `proc.exepath`, `proc.cmdline`, `thread.tid`, `proc.cwd` |
+| Parent | `proc.ppid`, `proc.pname` |
+| User | `user.uid`, `user.name` |
+| Syscall | `evt.args`, `evt.res`, `evt.rawres`, `evt.failed` |
+| File or socket | `fd.num`, `fd.name`, `fd.type` |
+| Network | `fd.lip`, `fd.lport`, `fd.rip`, `fd.rport` |
+
+`evt.args` is a readable string of captured syscall parameters. `fd.name` is
+libsinsp's resolved file path or socket name. `evt.rawres` is the numeric
+syscall result, such as a byte count or a negative error code. `evt.res` provides
+its readable status. `evt.type` is the event name and `evt.rawtime` is the
+Unix timestamp in nanoseconds. Unavailable fields appear as JSON `null`;
+the event itself still appears. Counts and values vary with activity in the VM.
+Stage 3 only extends Stage 2’s format string. libsinsp handles field lookup,
+JSON types and escaping. The leading `*` keeps events with missing context.
 
 | Folder | Contents |
 | --- | --- |
@@ -96,6 +120,7 @@ process context still appear, without the enrichment fields. Counts and PIDs var
 | `scripts/windows/` | Windows setup, steps 1–3, run, and teardown |
 | `src/` | Created by step 1, then updated by later steps |
 | `logs/` | A status log and syscall JSONL file for each stage |
+| `maintainer/` | Build and package the downloadable libraries; attendees skip this |
 
 ## When you are done
 
@@ -128,17 +153,25 @@ available. This is the library's event stream, not a guarantee of every syscall
 on the machine.
 This is a teaching example, not a production agent.
 
-First setup downloads the latest code from Falco’s default branch into `.deps/`
-inside the VM. Rerunning setup reuses that checkout and preserves source files.
-Dependencies retain their upstream licenses. No node-agent code is vendored.
+Setup downloads the architecture-matched Ubuntu 24.04 bundle into `.deps/falco-libs/`
+inside the VM and verifies its SHA-256 checksum. Rerunning setup reuses that
+bundle and preserves source files. Both architectures use the same Falco source
+revision, recorded in the bundle's `manifest.json`. Upstream licenses ship in
+the bundle. No node-agent code is vendored.
 
-The Mac setup and complete three-step sequence passed on the existing Ubuntu
-VM, reusing cached Falco libraries. Each JSONL record parsed successfully, counts
-matched the status logs, and the agent stopped after every run.
+Both bundles passed native Ubuntu 24.04 builds and live capture for all three
+stages after relocation. The ARM64 bundle also passed all stages in a fresh
+2 GB Multipass VM on Mac. Downloading and unpacking the released bundle took
+about two seconds on the test connection, after Ubuntu and the compiler were
+already installed. First-time VM and compiler installation still take extra time.
+New workshop VMs use two CPUs, 2 GB RAM, and a 12 GB disk.
 
 Earlier versions passed script parsing and source-generation checks on Windows
 Server 2022 with Windows PowerShell 5.1 and PowerShell 7. The full Multipass
 installation, VM launch, build, and capture flow still needs a Windows rehearsal.
-A fresh build against the latest upstream libraries has not been verified.
+
+To prepare a new library release, run the **Build workshop libraries** workflow.
+Use a new release tag in the workflow and setup scripts for each published bundle
+version. Attendees never run the maintainer scripts.
 
 [Upstream Falco libs](https://github.com/falcosecurity/libs)
