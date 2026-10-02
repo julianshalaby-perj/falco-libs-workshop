@@ -8,7 +8,7 @@ case $(uname -m) in x86_64|aarch64) ;; *) exit 1 ;; esac
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends build-essential ca-certificates clang cmake git pkg-config libelf-dev zlib1g-dev python3 linux-tools-generic
 # Ubuntu's /usr/sbin/bpftool wrapper may not match the CI runner's Azure kernel.
-bpftool_exe=$(find /usr/lib/linux-tools -type f -name bpftool | sort -V | tail -n 1)
+bpftool_exe=$(find -L /usr/lib/linux-tools -type f -name bpftool | sort -V | tail -n 1)
 [[ -n "$bpftool_exe" ]] || { echo 'bpftool is missing.' >&2; exit 1; }
 work_dir="$root_dir/.artifacts/bundle-build"
 mkdir -p "$work_dir"
