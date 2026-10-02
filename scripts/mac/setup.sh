@@ -57,48 +57,21 @@ fi
 multipass exec falco-lab -- mkdir -p /home/ubuntu/falco-libs-workshop
 multipass exec falco-lab -- bash -s <<'UBUNTU_SETUP'
 set -euo pipefail
-root_dir=/home/ubuntu/falco-libs-workshop
 source /etc/os-release
 if [[ ${ID:-} != ubuntu || ${VERSION_ID:-} != 24.04 ]]; then
     echo 'This setup script targets Ubuntu 24.04.' >&2
     exit 1
 fi
-arch=$(uname -m)
-case "$arch" in
-    x86_64|aarch64) ;;
-    *) echo "No workshop libraries are available for $arch." >&2; exit 1 ;;
-esac
 if [[ ! -r /sys/kernel/btf/vmlinux ]]; then
     echo 'Missing /sys/kernel/btf/vmlinux. Use the stock Ubuntu 24.04 VM kernel.' >&2
     exit 1
 fi
 # Attendees compile only the collector, using Ubuntu's compiler and CMake.
-if ! command -v g++ >/dev/null || ! command -v cmake >/dev/null || ! command -v make >/dev/null || ! command -v curl >/dev/null; then
+if ! command -v g++ >/dev/null || ! command -v cmake >/dev/null || ! command -v make >/dev/null; then
     sudo apt-get update
-    sudo apt-get install -y --no-install-recommends build-essential ca-certificates cmake curl
+    sudo apt-get install -y --no-install-recommends build-essential ca-certificates cmake
 fi
-release=sdk-2026-10-02-v1
-sdk_dir="$root_dir/.deps/falco-libs"
-if [[ ! -f "$sdk_dir/.release" ]] || [[ $(cat "$sdk_dir/.release") != "$release" ]]; then
-    echo "Downloading prebuilt Falco libraries for $arch..."
-    mkdir -p "$root_dir/.deps"
-    download_dir=$(mktemp -d "$root_dir/.deps/download.XXXXXX")
-    trap 'rm -rf -- "$download_dir"' EXIT
-    bundle="falco-libs-ubuntu24.04-$arch.tar.gz"
-    url="https://github.com/julianshalaby-perj/falco-libs-workshop/releases/download/$release"
-    curl --fail --location --retry 3 "$url/$bundle" -o "$download_dir/$bundle"
-    curl --fail --location --retry 3 "$url/$bundle.sha256" -o "$download_dir/$bundle.sha256"
-    (cd "$download_dir" && sha256sum -c "$bundle.sha256")
-    tar -xzf "$download_dir/$bundle" -C "$download_dir"
-    [[ -f "$download_dir/falco-libs/FalcoWorkshopConfig.cmake" ]]
-    # Replace only our downloaded library bundle after verification succeeds.
-    rm -rf -- "$sdk_dir"
-    mv "$download_dir/falco-libs" "$sdk_dir"
-    printf '%s\n' "$release" > "$sdk_dir/.release"
-else
-    echo 'Prebuilt Falco libraries are already installed.'
-fi
-echo 'Setup complete. No Falco library compilation needed.'
+echo 'Setup complete. The VM and build tools are ready.'
 # End of Ubuntu setup.
 UBUNTU_SETUP
 echo 'Stay in this terminal. Next: bash scripts/mac/step-1.sh'

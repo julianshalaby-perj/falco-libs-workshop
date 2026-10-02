@@ -2,16 +2,8 @@
 set -euo pipefail
 root_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 
-# Each step writes the complete source, so you can repeat it or skip ahead.
+# Each step writes the complete main.cpp, so you can repeat it or skip ahead.
 mkdir -p "$root_dir/src"
-cat > "$root_dir/src/CMakeLists.txt" <<'COLLECTOR_CMAKE'
-cmake_minimum_required(VERSION 3.16)
-project(workshop-agent LANGUAGES CXX)
-find_package(FalcoWorkshop CONFIG REQUIRED)
-add_executable(workshop-agent main.cpp)
-target_compile_features(workshop-agent PRIVATE cxx_std_17)
-target_link_libraries(workshop-agent sinsp)
-COLLECTOR_CMAKE
 cat > "$root_dir/src/main.cpp" <<'COLLECTOR_CPP'
 // Step 2: output raw event fields and parameters.
 #include <chrono>

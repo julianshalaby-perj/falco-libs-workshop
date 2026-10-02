@@ -43,20 +43,14 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not copy the source into Ubuntu.' }
 Write-Status 'Rebuilding the agent in Ubuntu...'
 $UbuntuBuild = @'
 set -euo pipefail
-root_dir=/home/ubuntu/falco-libs-workshop
-sdk_dir="$root_dir/.deps/falco-libs"
-if [[ ! -f "$sdk_dir/FalcoWorkshopConfig.cmake" ]]; then
-    echo 'Run setup from your Mac or Windows folder first.' >&2
-    exit 1
-fi
-mkdir -p "$root_dir/build"
-# Only main.cpp is compiled. The downloaded libraries are linked as-is.
+cd /home/ubuntu/falco-libs-workshop
+mkdir -p build
+# CMake downloads the prebuilt libraries if needed; only main.cpp is compiled.
 (
-cmake -S "$root_dir/src" -B "$root_dir/build/collector" \
-    -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$sdk_dir" &&
-cmake --build "$root_dir/build/collector" --target workshop-agent --parallel 1
-) > "$root_dir/build/workshop-build.log" 2>&1 || {
-    cat "$root_dir/build/workshop-build.log" >&2
+cmake -S src -B build/collector -DCMAKE_BUILD_TYPE=Release &&
+cmake --build build/collector --parallel 1
+) > build/workshop-build.log 2>&1 || {
+    cat build/workshop-build.log >&2
     exit 1
 }
 # End of build.
@@ -68,11 +62,9 @@ Write-Status 'Build complete.'
 Write-Status 'Running for ten seconds. Example activity is generated automatically...'
 $UbuntuCapture = @'
 set -euo pipefail
-root_dir=/home/ubuntu/falco-libs-workshop
-capture_log="$root_dir/build/workshop-capture.log"
-cd "$root_dir/build"
+cd /home/ubuntu/falco-libs-workshop/build
 : > workshop-syscalls.jsonl
-sudo ./collector/workshop-agent > /dev/null 2> "$capture_log" &
+sudo ./collector/workshop-agent > /dev/null 2> workshop-capture.log &
 agent_pid=$!
 # Stop this run's agent if the runner is interrupted.
 trap 'kill "$agent_pid" 2>/dev/null || true' EXIT

@@ -6,7 +6,7 @@ laptop for the entire workshop. The scripts handle Ubuntu automatically.
 
 ## Mac
 
-Open Terminal, clone the repo, and prepare the VM and libraries:
+Open Terminal, clone the repo, and prepare the VM:
 
 ```sh
 git clone https://github.com/julianshalaby-perj/falco-libs-workshop.git
@@ -27,7 +27,7 @@ bash scripts/mac/run.sh
 
 ## Windows
 
-Open PowerShell, clone the repo, and prepare the VM and libraries:
+Open PowerShell, clone the repo, and prepare the VM:
 
 ```powershell
 git clone https://github.com/julianshalaby-perj/falco-libs-workshop.git
@@ -46,8 +46,8 @@ powershell -ExecutionPolicy Bypass -File scripts/windows/step-3.ps1
 powershell -ExecutionPolicy Bypass -File scripts/windows/run.ps1
 ```
 
-Setup offers to install Multipass, creates Ubuntu, installs the C++ build tools,
-and downloads prebuilt Falco libraries for the VM's CPU architecture.
+Setup offers to install Multipass, creates Ubuntu, and installs the C++ build tools.
+The first build downloads the prebuilt Falco libraries through `src/CMakeLists.txt`.
 Attendees compile only the collector. Approve installer prompts. If Windows requests a
 restart, reboot and rerun setup.
 
@@ -58,10 +58,11 @@ enabled, and installation may need administrator access.
 
 ## Workshop flow
 
-The repo starts without collector source files. **Step 1 creates `src/` with
-`main.cpp` and `CMakeLists.txt` on your laptop.** Every step writes the complete
-source for that stage. Comments mark the additions. You can inspect or edit the
-files locally. Rerunning a step replaces those two files.
+The repo includes **`src/CMakeLists.txt`**, which owns the library release URL,
+architecture selection, checksums, download, and linking. **Step 1 creates
+`src/main.cpp` on your laptop.** Every step replaces only `main.cpp` with the
+complete source for that stage. Comments mark the additions. The shared CMake
+configuration stays unchanged across stages.
 
 **`run` rebuilds, generates example activity inside Ubuntu, and runs the agent
 for ten seconds.** Each stage saves a matching pair of files in `logs/`:
@@ -138,7 +139,7 @@ values vary with activity in the VM.
 | --- | --- |
 | `scripts/mac/` | Mac setup, steps 1–3, run, and teardown |
 | `scripts/windows/` | Windows setup, steps 1–3, run, and teardown |
-| `src/` | Created by step 1, then updated by later steps |
+| `src/` | Shared CMake configuration and the generated `main.cpp` |
 | `logs/` | A status log and syscall JSONL file for each stage |
 
 ## When you are done
@@ -172,11 +173,13 @@ available. This is the library's event stream, not a guarantee of every syscall
 on the machine.
 This is a teaching example, not a production agent.
 
-Setup downloads the architecture-matched Ubuntu 24.04 bundle into `.deps/falco-libs/`
-inside the VM and verifies its SHA-256 checksum. Rerunning setup reuses that
-bundle and preserves source files. Both architectures use the same Falco source
-revision, recorded in the bundle's `manifest.json`. Upstream licenses ship in
-the bundle. No node-agent code is vendored.
+On the first build, CMake downloads the architecture-matched Ubuntu 24.04 bundle
+and verifies its SHA-256 checksum. It caches the extracted libraries under
+`build/collector/_deps/falco_libs-src/` inside the VM. Later builds reuse them.
+All package settings live in `src/CMakeLists.txt`; setup has no library download
+or release configuration. Both architectures use the same Falco source revision,
+recorded in the bundle's `manifest.json`. Upstream licenses ship in the bundle.
+No node-agent code is vendored.
 
 Both bundles passed native Ubuntu 24.04 builds and live capture for all three
 stages after relocation. The ARM64 bundle also passed all stages in a fresh

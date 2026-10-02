@@ -1,17 +1,9 @@
 $ErrorActionPreference = 'Stop'
 $WorkshopRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 
-# Each step writes the complete source, so you can repeat it or skip ahead.
+# Each step writes the complete main.cpp, so you can repeat it or skip ahead.
 $SourceDir = Join-Path $WorkshopRoot 'src'
 New-Item -ItemType Directory -Path $SourceDir -Force | Out-Null
-$CMake = @'
-cmake_minimum_required(VERSION 3.16)
-project(workshop-agent LANGUAGES CXX)
-find_package(FalcoWorkshop CONFIG REQUIRED)
-add_executable(workshop-agent main.cpp)
-target_compile_features(workshop-agent PRIVATE cxx_std_17)
-target_link_libraries(workshop-agent sinsp)
-'@
 $Source = @'
 // Step 2: output raw event fields and parameters.
 #include <chrono>
@@ -94,7 +86,6 @@ int main() {
     return 0;
 }
 '@
-[IO.File]::WriteAllText((Join-Path $SourceDir 'CMakeLists.txt'), $CMake.Replace("`r", '') + "`n")
 [IO.File]::WriteAllText((Join-Path $SourceDir 'main.cpp'), $Source.Replace("`r", '') + "`n")
 
 Write-Host 'Step 2 source ready. Run scripts/windows/run.ps1.'
