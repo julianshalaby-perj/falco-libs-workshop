@@ -120,7 +120,6 @@ JSON types and escaping. The leading `*` keeps events with missing context.
 | `scripts/windows/` | Windows setup, steps 1–3, run, and teardown |
 | `src/` | Created by step 1, then updated by later steps |
 | `logs/` | A status log and syscall JSONL file for each stage |
-| `maintainer/` | Build and package the downloadable libraries; attendees skip this |
 
 ## When you are done
 
@@ -169,9 +168,5 @@ New workshop VMs use two CPUs, 2 GB RAM, and a 12 GB disk.
 Earlier versions passed script parsing and source-generation checks on Windows
 Server 2022 with Windows PowerShell 5.1 and PowerShell 7. The full Multipass
 installation, VM launch, build, and capture flow still needs a Windows rehearsal.
-
-To prepare a new library release, run the **Build workshop libraries** workflow.
-Use a new release tag in the workflow and setup scripts for each published bundle
-version. Attendees never run the maintainer scripts.
 
 [Upstream Falco libs](https://github.com/falcosecurity/libs)
