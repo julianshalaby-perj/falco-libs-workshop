@@ -69,20 +69,19 @@ multipass exec falco-lab -- bash -s <<'UBUNTU_CAPTURE' || capture_result=$?
 set -euo pipefail
 root_dir=/home/ubuntu/falco-libs-workshop
 capture_log="$root_dir/build/workshop-capture.log"
-sudo "$root_dir/build/bin/workshop-agent" > "$root_dir/build/workshop-syscalls.jsonl" 2> "$capture_log" &
+cd "$root_dir/build"
+: > workshop-syscalls.jsonl
+sudo ./collector/workshop-agent > /dev/null 2> "$capture_log" &
 agent_pid=$!
 # Stop this run's agent if the runner is interrupted.
 trap 'kill "$agent_pid" 2>/dev/null || true' EXIT
 trap 'exit 130' HUP INT TERM
 
-# Generate one example execution after attachment, without another terminal.
-for attempt in {1..200}; do
-    if grep -q 'Attached to the Ubuntu kernel.' "$capture_log"; then
-        /usr/bin/id >/dev/null
-        break
-    fi
+# Generate activity while the agent runs, without relying on collector messages.
+for attempt in {1..20}; do
     if ! kill -0 "$agent_pid" 2>/dev/null; then break; fi
-    sleep 0.1
+    /usr/bin/id >/dev/null
+    sleep 1
 done
 result=0
 wait "$agent_pid" || result=$?

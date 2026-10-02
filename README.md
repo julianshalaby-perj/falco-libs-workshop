@@ -68,7 +68,7 @@ for ten seconds.** Each stage saves a matching pair of files in `logs/`:
 
 | File | Contents |
 | --- | --- |
-| `stage-1.log`, `stage-2.log`, `stage-3.log` | Build and capture status, event count, and errors |
+| `stage-1.log`, `stage-2.log`, `stage-3.log` | Runner progress and failures |
 | `stage-1.jsonl`, `stage-2.jsonl`, `stage-3.jsonl` | One JSON object per captured event |
 
 Rerunning a stage replaces that stage's files. Other stages' files stay.
@@ -79,6 +79,8 @@ transfers completed files from Ubuntu, so bulk syscall output does not pass
 through the terminal. You do not need to enter the VM. Successful builds stay
 quiet. If a build fails, the agent does not run.
 
+The collector has no console logging or try/catch block. It writes events directly
+to a JSONL file; the runner reports progress and transfers that file to your laptop.
 The agent stops after capture. The VM stays available for the next step.
 Running `run` before step 1 explains that there is no agent and nothing to collect.
 
@@ -86,33 +88,51 @@ Running `run` before step 1 explains that there is no agent and nothing to colle
 | --- | --- |
 | Before step 1 | No agent yet; nothing to collect |
 | Step 1 | Attached only; the JSONL file is empty |
-| Step 2 | JSONL records with `evt.type` and `evt.rawtime`; count in the status log |
-| Step 3 | The same JSONL records, enriched with process, syscall, file and network context |
+| Step 2 | Raw event metadata, return status, and every captured parameter in JSONL |
+| Step 3 | The same raw fields, plus process, user, file and socket context from libsinsp |
 
 Wait for a run to finish, then apply the next step and run again. Every step
 includes the earlier code, so you can repeat a step or skip ahead.
 
-Step 2 reads events into user space and writes JSONL records for common
-syscalls such as file opens, reads, writes, and process executions. Step 3 adds
-these fields using libsinsp’s built-in names and JSON formatter:
+Step 2 reads events into user space and outputs the data available in each
+captured event. It uses the libraries' native field and parameter names:
 
-| Context | JSON fields |
+| Raw event data | JSON fields |
 | --- | --- |
-| Process | `proc.pid`, `proc.name`, `proc.exepath`, `proc.cmdline`, `thread.tid`, `proc.cwd` |
+| Event metadata | `evt.type`, `evt.rawtime`, `evt.dir`, `evt.cpu`, `thread.tid` |
+| Return status | `evt.rawres`, `evt.res`, `evt.failed` |
+| Every captured parameter | `evt.rawarg.<name>`, such as `evt.rawarg.fd`, `evt.rawarg.name`, `evt.rawarg.flags`, `evt.rawarg.res` |
+
+Parameter names vary by event. The collector loops over the event's parameters
+instead of maintaining a shortlist. Values under `evt.rawarg.*` use libsinsp's
+unresolved text representation, so they are JSON strings. This includes captured
+socket tuples and data buffers, subject to the probe's capture limits and the
+library's text rendering. It is a readable view, not a lossless binary dump.
+`evt.rawtime` is the Unix timestamp in nanoseconds. `evt.rawres` is the numeric
+return value; `evt.res` and `evt.failed` describe that value without needing
+process or descriptor history.
+
+Step 3 keeps all those fields and adds context resolved from libsinsp's state:
+
+| Enrichment | Additional JSON fields |
+| --- | --- |
+| Process | `proc.pid`, `proc.name`, `proc.exepath`, `proc.cmdline`, `proc.cwd` |
 | Parent | `proc.ppid`, `proc.pname` |
 | User | `user.uid`, `user.name` |
-| Syscall | `evt.args`, `evt.res`, `evt.rawres`, `evt.failed` |
 | File or socket | `fd.num`, `fd.name`, `fd.type` |
 | Network | `fd.lip`, `fd.lport`, `fd.rip`, `fd.rport` |
 
-`evt.args` is a readable string of captured syscall parameters. `fd.name` is
-libsinsp's resolved file path or socket name. `evt.rawres` is the numeric
-syscall result, such as a byte count or a negative error code. `evt.res` provides
-its readable status. `evt.type` is the event name and `evt.rawtime` is the
-Unix timestamp in nanoseconds. Unavailable fields appear as JSON `null`;
-the event itself still appears. Counts and values vary with activity in the VM.
-Stage 3 only extends Stage 2’s format string. libsinsp handles field lookup,
-JSON types and escaping. The leading `*` keeps events with missing context.
+For example, a read event contains a descriptor number. Stage 3 adds the file
+path associated with that descriptor. A syscall carries a thread ID; Stage 3
+adds its process and command line. Some events also carry process or socket
+information as raw parameters; the enrichment fields provide context across
+events using libsinsp's tracked state and system information.
+
+Both stages use libsinsp to read and parse events. Stage 3 adds only field names
+to the output list, not a separate processing pass. The library extracts the
+named fields with their native JSON types; unavailable values are `null`.
+JsonCpp escapes the output and writes one record per line. Counts and available
+values vary with activity in the VM.
 
 | Folder | Contents |
 | --- | --- |
