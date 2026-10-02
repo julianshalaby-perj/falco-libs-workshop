@@ -2,8 +2,9 @@
 set -euo pipefail
 root_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 
-# Each step writes the complete main.cpp, so you can repeat it or skip ahead.
+# Each step writes main.cpp and copies the shared CMake configuration, so you can repeat it or skip ahead.
 mkdir -p "$root_dir/src"
+cp "$root_dir/scripts/CMakeLists.txt" "$root_dir/src/CMakeLists.txt"
 cat > "$root_dir/src/main.cpp" <<'COLLECTOR_CPP'
 // Step 2: output raw event fields and parameters.
 #include <chrono>

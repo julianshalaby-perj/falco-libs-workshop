@@ -1,9 +1,10 @@
 $ErrorActionPreference = 'Stop'
 $WorkshopRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 
-# Each step writes the complete main.cpp, so you can repeat it or skip ahead.
+# Each step writes main.cpp and copies the shared CMake configuration, so you can repeat it or skip ahead.
 $SourceDir = Join-Path $WorkshopRoot 'src'
 New-Item -ItemType Directory -Path $SourceDir -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $WorkshopRoot 'scripts/CMakeLists.txt') -Destination (Join-Path $SourceDir 'CMakeLists.txt') -Force
 $Source = @'
 // Step 3: add context from libsinsp state. Earlier steps are included.
 #include <chrono>

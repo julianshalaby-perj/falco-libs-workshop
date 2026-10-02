@@ -58,11 +58,12 @@ enabled, and installation may need administrator access.
 
 ## Workshop flow
 
-The repo includes **`src/CMakeLists.txt`**, which owns the library release URL,
-architecture selection, checksums, download, and linking. **Step 1 creates
-`src/main.cpp` on your laptop.** Every step replaces only `main.cpp` with the
-complete source for that stage. Comments mark the additions. The shared CMake
-configuration stays unchanged across stages.
+The repo starts without generated source files. **Step 1 creates `src/main.cpp`
+and `src/CMakeLists.txt`.** Every step writes its complete `main.cpp` and copies
+the same CMake template from `scripts/CMakeLists.txt`, so you can repeat a step
+or skip ahead. That one template owns the library release URL, architecture
+selection, checksums, download, and linking. Comments mark the code additions.
+Rerunning a step replaces both generated files.
 
 **`run` rebuilds, generates example activity inside Ubuntu, and runs the agent
 for ten seconds.** Each stage saves a matching pair of files in `logs/`:
@@ -80,15 +81,17 @@ transfers completed files from Ubuntu, so bulk syscall output does not pass
 through the terminal. You do not need to enter the VM. Successful builds stay
 quiet. If a build fails, the agent does not run.
 
-The collector has no console logging or try/catch block. It writes events directly
-to a JSONL file; the runner reports progress and transfers that file to your laptop.
+Stage 1 writes one summary line to its log: the capture engine’s event count,
+dropped events, and zero events read. It does not consume buffered events.
+Stages 2 and 3 write events directly to JSONL without collector status messages.
+There are no try/catch blocks. The runner reports progress and transfers the files.
 The agent stops after capture. The VM stays available for the next step.
 Running `run` before step 1 explains that there is no agent and nothing to collect.
 
 | Stage | What you see when you run |
 | --- | --- |
 | Before step 1 | No agent yet; nothing to collect |
-| Step 1 | Attached only; the JSONL file is empty |
+| Step 1 | Capture count in the log; zero events read and an empty JSONL file |
 | Step 2 | Raw event metadata, return status, and every captured parameter in JSONL |
 | Step 3 | The same raw fields, plus process, user, file and socket context from libsinsp |
 
@@ -139,7 +142,8 @@ values vary with activity in the VM.
 | --- | --- |
 | `scripts/mac/` | Mac setup, steps 1–3, run, and teardown |
 | `scripts/windows/` | Windows setup, steps 1–3, run, and teardown |
-| `src/` | Shared CMake configuration and the generated `main.cpp` |
+| `scripts/CMakeLists.txt` | One CMake template shared by every stage |
+| `src/` | Generated `main.cpp` and `CMakeLists.txt`; initially empty |
 | `logs/` | A status log and syscall JSONL file for each stage |
 
 ## When you are done
@@ -176,8 +180,9 @@ This is a teaching example, not a production agent.
 On the first build, CMake downloads the architecture-matched Ubuntu 24.04 bundle
 and verifies its SHA-256 checksum. It caches the extracted libraries under
 `build/collector/_deps/falco_libs-src/` inside the VM. Later builds reuse them.
-All package settings live in `src/CMakeLists.txt`; setup has no library download
-or release configuration. Both architectures use the same Falco source revision,
+All package settings are defined once in `scripts/CMakeLists.txt` and copied to
+`src/CMakeLists.txt` by the steps. Setup has no library download or release
+configuration. Both architectures use the same Falco source revision,
 recorded in the bundle's `manifest.json`. Upstream licenses ship in the bundle.
 No node-agent code is vendored.
 
